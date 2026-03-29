@@ -12,9 +12,13 @@ if not cap.isOpened():
     print("Error: Could not open camera at index 0")
     exit(1)
 
+cv2.namedWindow("ShopGuard - Person Detection")
 prev_time = time.time()
 
 while True:
+    if cv2.getWindowProperty("ShopGuard - Person Detection", cv2.WND_PROP_VISIBLE) < 1:
+        break
+
     ret, frame = cap.read()
     if not ret:
         print("Error: Failed to read frame")
@@ -40,7 +44,8 @@ while True:
 
     cv2.imshow("ShopGuard - Person Detection", frame)
 
-    if cv2.waitKey(1) & 0xFF == ord("q"):
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord("q") or key == 27:  # q or Esc
         break
 
 cap.release()

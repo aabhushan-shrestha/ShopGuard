@@ -8,11 +8,16 @@ AI-powered shoplifting detection MVP for Nepali retail stores.
 - Alerts: Telegram message + beep sound + video clip save
 
 ## Rules
-- Keep all code simple, flat scripts, no classes
-- Always end with: git add . && git commit -m "..." && git push
 - MVP only, no overengineering
+- Use proper logging (no print statements)
+- Type hints throughout
 
-## Files
-- capture.py — main detection script
-- config.yaml — zone coordinates and thresholds
+## Structure
+- shopguard/ — main package (config, log, camera, detector, display, main)
+- config.yaml — default configuration
+- capture.py — legacy standalone script (Phase 0)
 - .env — Telegram bot token and chat ID
+
+## Running
+- `python -m shopguard` or `python shopguard/main.py`
+- `python -m shopguard --config path/to/config.yaml`

@@ -1,0 +1,30 @@
+camera:
+  source: 0
+  width: 1280
+  height: 720
+  fps_cap: 30
+  reconnect_attempts: 5
+  reconnect_delay: 2.0
+
+model:
+  weights: "yolov8n.pt"
+  confidence: 0.5
+  classes: [0]
+  device: "auto"
+  img_size: 640
+
+display:
+  show_window: true
+  window_name: "ShopGuard - Person Detection"
+  show_fps: true
+  show_count: true
+  bbox_color: [0, 255, 0]
+  bbox_thickness: 2
+  font_scale: 0.6
+
+logging:
+  level: "INFO"
+  file: "logs/shopguard.log"
+  max_bytes: 5242880
+  backup_count: 3
+  format: "%(asctime)s | %(name)s | %(levelname)s | %(message)s"

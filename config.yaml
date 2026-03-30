@@ -30,7 +30,8 @@ zones:
   - name: "restricted"
     points: [[600,100], [900,100], [900,400], [600,400]]
     max_occupancy: 1
-    color: [0, 0, 255]
+    restricted: true
+    color: [32, 32, 255]
 
 alerts:
   enabled: true

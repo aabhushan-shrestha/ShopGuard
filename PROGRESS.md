@@ -49,25 +49,26 @@
 
 ---
 
-## Phase 3: Zone Definition ⬅️ YOU ARE HERE
+## Phase 3: Zone Definition ✅ COMPLETE
 
 **Goal:** Let the user define regions of interest (e.g. exits, high-value aisles, restricted areas) so the system knows *where* things happen.
 
 **Files:**
 - `shopguard/zones.py` — zone creation and hit-testing
 - `config/zones.json` — saved zone definitions
+- `zone_editor.py` — interactive polygon zone editor
 - `capture.py` — draw zones on screen, check if tracked persons are inside them
 
 **Tasks:**
-- [ ] Design a simple zone format (list of polygons with labels)
-- [ ] Build a zone editor (click to define polygon corners on a frozen frame)
-- [ ] Save/load zones to `config/zones.json`
-- [ ] On each frame, check which zone each tracked person is in
-- [ ] Color-code zones on the display (green = normal, red = restricted)
+- [x] Design a simple zone format (list of polygons with labels)
+- [x] Build a zone editor (click to define polygon corners on a frozen frame)
+- [x] Save/load zones to `config/zones.json`
+- [x] On each frame, check which zone each tracked person is in
+- [x] Color-code zones on the display (green = normal, red = restricted)
 
 ---
 
-## Phase 4: Behavior Analysis
+## Phase 4: Behavior Analysis ⬅️ YOU ARE HERE
 
 **Goal:** Use tracking history and zone data to flag suspicious patterns.
 

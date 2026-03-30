@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import logging
 import signal
-import sys
 
 from shopguard import config as config_mod
 from shopguard.alerts import AlertManager
@@ -69,9 +68,9 @@ def main(argv: list[str] | None = None) -> None:
         max_history=tcfg.get("max_history", 300),
     )
 
+    frame_count = 0
     try:
         with Camera(cfg) as cam:
-            frame_count = 0
             for frame in cam.frames():
                 if not _running:
                     break
@@ -103,7 +102,6 @@ def main(argv: list[str] | None = None) -> None:
                     )
     except RuntimeError as exc:
         logger.error("Fatal: %s", exc)
-        sys.exit(1)
     finally:
         display.cleanup()
         logger.info("ShopGuard stopped (processed %d frames)", frame_count)

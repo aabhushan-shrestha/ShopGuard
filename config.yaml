@@ -61,6 +61,15 @@ behavior:
   pace_reversals: 4    # direction changes required to flag pacing
   pace_window: 90      # frames to look back when checking for pacing
 
+recorder:
+  enabled: true
+  clips_dir: "clips"
+  pre_seconds: 10       # seconds of footage to keep before the alert
+  post_seconds: 10      # seconds to record after the alert fires
+  fps: 15               # write FPS for saved clips (sub-sampled from camera)
+  buffer_resize: 0.5    # downscale stored frames (0.5 = half res, saves ~75% RAM)
+  save_snapshot: true   # save a JPEG at the moment the alert fires
+
 logging:
   level: "INFO"
   file: "logs/shopguard.log"

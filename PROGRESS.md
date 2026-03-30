@@ -103,23 +103,23 @@
 
 ---
 
-## Phase 6: Recording & Evidence ⬅️ YOU ARE HERE
+## Phase 6: Recording & Evidence ✅ COMPLETE
 
 **Goal:** Automatically save video clips around suspicious events for later review.
 
 **Files:**
 - `shopguard/recorder.py` — clip saving logic
-- `clips/` — output directory for saved clips
+- `clips/` — output directory for saved clips (gitignored)
 
 **Tasks:**
-- [ ] Buffer the last N seconds of frames in memory (ring buffer)
-- [ ] When an alert fires, save a clip: 10s before + 10s after the event
-- [ ] Filename includes timestamp and event type
-- [ ] Optional: save a snapshot image with bounding boxes drawn
+- [x] Buffer the last N seconds of frames in memory (ring buffer)
+- [x] When an alert fires, save a clip: 10s before + 10s after the event
+- [x] Filename includes timestamp and event type
+- [x] Optional: save a snapshot image with bounding boxes drawn
 
 ---
 
-## Phase 7: Dashboard & Review UI
+## Phase 7: Dashboard & Review UI ⬅️ YOU ARE HERE
 
 **Goal:** A simple web interface to review alerts, watch clips, and manage zones.
 

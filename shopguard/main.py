@@ -14,6 +14,7 @@ from shopguard.camera import Camera
 from shopguard.detector import Detector
 from shopguard.display import Display
 from shopguard.log import setup as setup_logging
+from shopguard.recorder import ClipRecorder
 from shopguard.tracker import PersonTracker
 from shopguard.zones import ZoneManager
 
@@ -54,6 +55,7 @@ def main(argv: list[str] | None = None) -> None:
     zone_manager = ZoneManager(cfg)
     alert_manager = AlertManager(cfg)
     behavior_analyzer = BehaviorAnalyzer(cfg)
+    recorder = ClipRecorder(cfg)
     tcfg = cfg.tracker
     tracker = PersonTracker(
         iou_threshold=tcfg["iou_threshold"],
@@ -74,8 +76,13 @@ def main(argv: list[str] | None = None) -> None:
                 behavior_events = behavior_analyzer.analyze(
                     tracker.active_tracks, zone_manager.zones
                 )
-                alert_manager.check_and_alert(zone_statuses, behavior_events)
+                fired_alerts = alert_manager.check_and_alert(zone_statuses, behavior_events)
                 display.draw(frame, detections, zone_manager, zone_statuses, tracked, behavior_events)
+
+                # Push annotated frame (after draw) and trigger clips for new alerts
+                recorder.push_frame(frame)
+                for alert in fired_alerts:
+                    recorder.trigger(alert)
 
                 if not display.show(frame):
                     break

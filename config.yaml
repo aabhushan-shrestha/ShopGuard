@@ -38,6 +38,15 @@ alerts:
   cooldown_seconds: 30
   handlers:
     - type: "console"
+    - type: "file"
+      path: "logs/alerts.log"
+    - type: "sound"
+      frequency: 1000
+      duration_ms: 300
+    - type: "telegram"
+      enabled: false      # set to true; provide token/chat_id here or via .env
+      # token: ""         # or set TELEGRAM_BOT_TOKEN env var
+      # chat_id: ""       # or set TELEGRAM_CHAT_ID env var
     - type: "webhook"
       url: "http://localhost:8000/alert"
       enabled: false

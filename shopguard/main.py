@@ -71,10 +71,10 @@ def main(argv: list[str] | None = None) -> None:
                 detections = detector.detect(frame)
                 tracked = tracker.update(detections)
                 zone_statuses = zone_manager.check_occupancy(detections)
-                alert_manager.check_and_alert(zone_statuses)
                 behavior_events = behavior_analyzer.analyze(
                     tracker.active_tracks, zone_manager.zones
                 )
+                alert_manager.check_and_alert(zone_statuses, behavior_events)
                 display.draw(frame, detections, zone_manager, zone_statuses, tracked, behavior_events)
 
                 if not display.show(frame):

@@ -85,25 +85,25 @@
 
 ---
 
-## Phase 5: Alert System ⬅️ YOU ARE HERE
+## Phase 5: Alert System ✅ COMPLETE
 
 **Goal:** When suspicious behavior is detected, notify staff immediately.
 
 **Files:**
-- `shopguard/alerts.py` — alert dispatcher
-- `config/alerts.json` — alert settings (thresholds, notification channels)
+- `shopguard/alerts.py` — alert dispatcher with pluggable handlers
+- `config.yaml` — alert settings (cooldown, handlers, Telegram config)
 
 **Tasks:**
-- [ ] Define alert levels (info, warning, critical)
-- [ ] On-screen alert overlay (flash border, show message)
-- [ ] Sound alert (optional beep or chime)
-- [ ] Log all alerts to `logs/alerts.log` with timestamps
-- [ ] Webhook or message integration (Slack, email, SMS — pick one to start)
-- [ ] Cooldown logic so the same event doesn't spam alerts
+- [x] Define alert levels (info, warning, critical)
+- [x] On-screen alert overlay (flash border, show message)
+- [x] Sound alert (optional beep or chime)
+- [x] Log all alerts to `logs/alerts.log` with timestamps
+- [x] Webhook or message integration (Slack, email, SMS — pick one to start)
+- [x] Cooldown logic so the same event doesn't spam alerts
 
 ---
 
-## Phase 6: Recording & Evidence
+## Phase 6: Recording & Evidence ⬅️ YOU ARE HERE
 
 **Goal:** Automatically save video clips around suspicious events for later review.
 

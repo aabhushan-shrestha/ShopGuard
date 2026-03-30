@@ -6,12 +6,19 @@ Usage:
 Controls:
     SPACE       Freeze live feed and start editing
     LMB click   Add vertex to current polygon
-    n / Enter   Finish zone (prompts for name/settings in terminal)
+    n / Enter   Finish zone (opens on-screen input panel)
     u           Undo last vertex
     c           Clear current in-progress polygon
     d           Delete last completed zone
     s           Save zones to JSON and exit
     q / Esc     Exit without saving
+
+On-screen input panel (appears after pressing n/Enter with ≥3 vertices):
+    Type        Enter zone name / max occupancy digits
+    Backspace   Delete last character
+    y / n       Answer restricted prompt
+    Enter       Confirm field and advance
+    Esc         Cancel and return to drawing
 """
 
 from __future__ import annotations
@@ -33,15 +40,23 @@ _COLOR_NORMAL: tuple[int, int, int] = (0, 200, 0)
 _COLOR_RESTRICTED: tuple[int, int, int] = (32, 32, 255)
 _COLOR_CURRENT: tuple[int, int, int] = (0, 220, 255)
 
-# Mutable editor state (module-level so mouse callback can reach it)
+# ── Editor state ────────────────────────────────────────────────────────────
 _current_pts: list[tuple[int, int]] = []
 _completed: list[dict] = []
 
+# Input-panel state machine
+# States: "drawing" | "name" | "restricted" | "maxocc"
+_input_state: str = "drawing"
+_input_buf: str = ""          # text buffer for name / maxocc fields
+_partial: dict = {}           # accumulates name + restricted while collecting
+
 
 def _mouse_cb(event: int, x: int, y: int, _flags: int, _param: object) -> None:
-    if event == cv2.EVENT_LBUTTONDOWN:
+    if event == cv2.EVENT_LBUTTONDOWN and _input_state == "drawing":
         _current_pts.append((x, y))
 
+
+# ── Drawing helpers ──────────────────────────────────────────────────────────
 
 def _draw(frame: np.ndarray) -> np.ndarray:
     out = frame.copy()
@@ -74,24 +89,105 @@ def _draw(frame: np.ndarray) -> np.ndarray:
     cv2.putText(out, f"Zones: {len(_completed)}  Vertices: {len(_current_pts)}",
                 (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 255), 2)
     h = out.shape[0]
-    for i, hint in enumerate([
-        "LMB: add vertex | n: finish | u: undo | c: clear | d: del last | s: save | q: quit",
-    ]):
-        cv2.putText(out, hint, (10, h - 15),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1, cv2.LINE_AA)
+    cv2.putText(out,
+                "LMB: add vertex | n: finish | u: undo | c: clear | d: del last | s: save | q: quit",
+                (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1, cv2.LINE_AA)
+
+    # On-screen input panel
+    if _input_state != "drawing":
+        _draw_input_panel(out)
 
     return out
 
 
-def _finish_zone() -> None:
-    if len(_current_pts) < 3:
-        logger.warning("Need at least 3 vertices (have %d) — keep clicking", len(_current_pts))
+def _draw_input_panel(out: np.ndarray) -> None:
+    """Overlay a semi-transparent input panel in the centre of the frame."""
+    h, w = out.shape[:2]
+    bx, by, bw, bh = w // 4, h // 3, w // 2, h // 4
+
+    # Semi-transparent dark background
+    panel = out.copy()
+    cv2.rectangle(panel, (bx, by), (bx + bw, by + bh), (20, 20, 20), -1)
+    cv2.addWeighted(panel, 0.75, out, 0.25, 0, out)
+    cv2.rectangle(out, (bx, by), (bx + bw, by + bh), (0, 200, 255), 2)
+
+    # Title
+    cv2.putText(out, "New Zone", (bx + 10, by + 28),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 200, 255), 2)
+
+    # Prompt and live buffer
+    if _input_state == "name":
+        prompt = "Name (Enter to confirm):"
+        value = _input_buf + "|"
+    elif _input_state == "restricted":
+        prompt = "Restricted zone? Press Y or N:"
+        value = ""
+    else:  # maxocc
+        prompt = "Max occupancy, 0=unlimited (Enter):"
+        value = _input_buf + "|"
+
+    cv2.putText(out, prompt, (bx + 10, by + 58),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1, cv2.LINE_AA)
+    cv2.putText(out, value, (bx + 10, by + 85),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 100), 2)
+
+    # Hint
+    cv2.putText(out, "Esc: cancel", (bx + 10, by + bh - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (160, 160, 160), 1, cv2.LINE_AA)
+
+
+# ── State-machine key handling ───────────────────────────────────────────────
+
+def _handle_input_key(key: int) -> None:
+    """Process a keypress while the input panel is active."""
+    global _input_state, _input_buf, _partial
+
+    if key == 27:  # Esc — cancel
+        _input_state = "drawing"
+        _input_buf = ""
+        _partial = {}
+        logger.info("Zone input cancelled")
         return
-    print(f"\n--- Finishing zone ({len(_current_pts)} vertices) ---")
-    name = input("  Name [zone_N]: ").strip() or f"zone_{len(_completed) + 1}"
-    restricted = input("  Restricted? (y/n) [n]: ").strip().lower() == "y"
-    raw = input("  Max occupancy, 0=unlimited [0]: ").strip()
-    max_occ = int(raw) if raw.isdigit() else 0
+
+    if _input_state == "name":
+        if key == 13:  # Enter — confirm name
+            name = _input_buf.strip() or f"zone_{len(_completed) + 1}"
+            _partial["name"] = name
+            _input_buf = ""
+            _input_state = "restricted"
+            logger.debug("Zone name set to %r", name)
+        elif key == 8:  # Backspace
+            _input_buf = _input_buf[:-1]
+        elif 32 <= key <= 126:  # printable ASCII
+            _input_buf += chr(key)
+
+    elif _input_state == "restricted":
+        if key in (ord("y"), ord("Y")):
+            _partial["restricted"] = True
+            _input_state = "maxocc"
+        elif key in (ord("n"), ord("N"), 13):
+            _partial["restricted"] = False
+            _input_state = "maxocc"
+
+    elif _input_state == "maxocc":
+        if key == 13:  # Enter — confirm and finalise zone
+            raw = _input_buf.strip()
+            max_occ = int(raw) if raw.isdigit() else 0
+            _finalise_zone(
+                name=_partial["name"],
+                restricted=_partial["restricted"],
+                max_occ=max_occ,
+            )
+            _input_buf = ""
+            _partial = {}
+            _input_state = "drawing"
+        elif key == 8:
+            _input_buf = _input_buf[:-1]
+        elif ord("0") <= key <= ord("9"):
+            _input_buf += chr(key)
+
+
+def _finalise_zone(name: str, restricted: bool, max_occ: int) -> None:
     color = list(_COLOR_RESTRICTED) if restricted else list(_COLOR_NORMAL)
     _completed.append({
         "name": name,
@@ -101,8 +197,21 @@ def _finish_zone() -> None:
         "color": color,
     })
     _current_pts.clear()
-    logger.info("Zone %r added (%s)", name, "restricted" if restricted else "normal")
+    logger.info("Zone %r added (%s, max_occ=%d)",
+                name, "restricted" if restricted else "normal", max_occ)
 
+
+def _begin_finish_zone() -> None:
+    """Called when user presses n/Enter in drawing mode."""
+    global _input_state, _input_buf
+    if len(_current_pts) < 3:
+        logger.warning("Need at least 3 vertices (have %d) — keep clicking", len(_current_pts))
+        return
+    _input_buf = ""
+    _input_state = "name"
+
+
+# ── Persistence ──────────────────────────────────────────────────────────────
 
 def _save(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -110,6 +219,8 @@ def _save(path: Path) -> None:
         json.dump({"zones": _completed}, f, indent=2)
     logger.info("Saved %d zone(s) to %s", len(_completed), path)
 
+
+# ── Entry point ──────────────────────────────────────────────────────────────
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="ShopGuard zone editor")
@@ -119,20 +230,18 @@ def main(argv: list[str] | None = None) -> None:
 
     zones_path = Path(args.zones)
 
-    # Load existing zones
     if zones_path.exists():
         with open(zones_path, encoding="utf-8") as f:
             _completed.extend(json.load(f).get("zones", []))
         logger.info("Loaded %d existing zone(s) from %s", len(_completed), zones_path)
 
-    # Open live feed, wait for SPACE to freeze
+    # ── Live-feed phase: wait for SPACE to freeze ────────────────────────────
     cap = cv2.VideoCapture(args.camera)
     if not cap.isOpened():
         logger.error("Cannot open camera %d", args.camera)
         sys.exit(1)
 
     logger.info("Live feed — press SPACE to freeze and start editing, q to cancel")
-    frozen: np.ndarray | None = None
 
     while True:
         ret, frame = cap.read()
@@ -152,18 +261,24 @@ def main(argv: list[str] | None = None) -> None:
 
     cap.release()
 
+    # ── Editing phase ────────────────────────────────────────────────────────
     cv2.setMouseCallback(WINDOW, _mouse_cb)
     logger.info("Frame frozen. Click to add vertices. Press 'n' to finish each zone.")
 
     while True:
         if cv2.getWindowProperty(WINDOW, cv2.WND_PROP_VISIBLE) < 1:
             break
-        cv2.imshow(WINDOW, _draw(frozen))
 
+        cv2.imshow(WINDOW, _draw(frozen))
         key = cv2.waitKey(30) & 0xFF
 
-        if key in (ord("n"), 13):      # n or Enter
-            _finish_zone()
+        if _input_state != "drawing":
+            _handle_input_key(key)
+            continue
+
+        # Normal drawing-mode keys
+        if key in (ord("n"), 13):        # n or Enter → begin zone finish
+            _begin_finish_zone()
         elif key == ord("u"):
             if _current_pts:
                 _current_pts.pop()

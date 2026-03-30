@@ -1,4 +1,4 @@
-"""Display renderer for bounding boxes, FPS, and person count overlay."""
+"""Display renderer for bounding boxes, FPS, person count, and zone overlays."""
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ import numpy as np
 if TYPE_CHECKING:
     from shopguard.config import AttrDict
     from shopguard.detector import Detection
+    from shopguard.tracker import PersonTracker
+    from shopguard.zones import ZoneManager, ZoneStatus
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +34,31 @@ class Display:
         self._window_created = False
 
     def draw(
-        self, frame: np.ndarray, detections: list[Detection]
+        self,
+        frame: np.ndarray,
+        detections: list[Detection],
+        zone_manager: ZoneManager | None = None,
+        zone_statuses: list[ZoneStatus] | None = None,
+        tracked: list[tuple[int, Detection]] | None = None,
     ) -> np.ndarray:
-        """Draw bounding boxes and overlays onto *frame* (mutates in place)."""
-        for det in detections:
+        """Draw bounding boxes, zone overlays, and HUD onto *frame* (mutates in place).
+
+        If *tracked* is provided, person IDs are shown instead of raw detections.
+        """
+        if zone_manager is not None and zone_statuses is not None:
+            zone_manager.draw_zones(frame, zone_statuses)
+
+        items: list[tuple[str, Detection]]
+        if tracked is not None:
+            items = [(f"ID {tid} {det.confidence:.2f}", det) for tid, det in tracked]
+        else:
+            items = [(f"person {det.confidence:.2f}", det) for det in detections]
+
+        for label, det in items:
             cv2.rectangle(
                 frame, (det.x1, det.y1), (det.x2, det.y2),
                 self._bbox_color, self._bbox_thickness,
             )
-            label = f"person {det.confidence:.2f}"
             cv2.putText(
                 frame, label, (det.x1, det.y1 - 8),
                 cv2.FONT_HERSHEY_SIMPLEX, self._font_scale,

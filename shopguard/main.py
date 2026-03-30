@@ -8,10 +8,13 @@ import signal
 import sys
 
 from shopguard import config as config_mod
+from shopguard.alerts import AlertManager
 from shopguard.camera import Camera
 from shopguard.detector import Detector
 from shopguard.display import Display
 from shopguard.log import setup as setup_logging
+from shopguard.tracker import PersonTracker
+from shopguard.zones import ZoneManager
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +50,13 @@ def main(argv: list[str] | None = None) -> None:
 
     detector = Detector(cfg)
     display = Display(cfg)
+    zone_manager = ZoneManager(cfg)
+    alert_manager = AlertManager(cfg)
+    tcfg = cfg.tracker
+    tracker = PersonTracker(
+        iou_threshold=tcfg["iou_threshold"],
+        max_lost=tcfg["max_lost"],
+    )
 
     try:
         with Camera(cfg) as cam:
@@ -56,7 +66,10 @@ def main(argv: list[str] | None = None) -> None:
                     break
 
                 detections = detector.detect(frame)
-                display.draw(frame, detections)
+                tracked = tracker.update(detections)
+                zone_statuses = zone_manager.check_occupancy(detections)
+                alert_manager.check_and_alert(zone_statuses)
+                display.draw(frame, detections, zone_manager, zone_statuses, tracked)
 
                 if not display.show(frame):
                     break

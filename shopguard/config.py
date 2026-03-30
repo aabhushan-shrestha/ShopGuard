@@ -35,6 +35,12 @@ DEFAULTS: dict[str, Any] = {
         "bbox_thickness": 2,
         "font_scale": 0.6,
     },
+    "zones": [],
+    "alerts": {
+        "enabled": True,
+        "cooldown_seconds": 30,
+        "handlers": [],
+    },
     "logging": {
         "level": "INFO",
         "file": "logs/shopguard.log",

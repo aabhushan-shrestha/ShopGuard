@@ -22,6 +22,29 @@ display:
   bbox_thickness: 2
   font_scale: 0.6
 
+zones:
+  - name: "entrance"
+    points: [[100,400], [500,400], [500,700], [100,700]]
+    max_occupancy: 5
+    color: [0, 255, 255]
+  - name: "restricted"
+    points: [[600,100], [900,100], [900,400], [600,400]]
+    max_occupancy: 1
+    color: [0, 0, 255]
+
+alerts:
+  enabled: true
+  cooldown_seconds: 30
+  handlers:
+    - type: "console"
+    - type: "webhook"
+      url: "http://localhost:8000/alert"
+      enabled: false
+
+tracker:
+  iou_threshold: 0.3
+  max_lost: 30
+
 logging:
   level: "INFO"
   file: "logs/shopguard.log"

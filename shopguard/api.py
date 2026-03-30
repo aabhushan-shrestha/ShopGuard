@@ -20,6 +20,7 @@ from shopguard.zones import JSON_PATH as ZONES_JSON_PATH
 
 if TYPE_CHECKING:
     from shopguard.alerts import Alert
+    from shopguard.camera import Camera
     from shopguard.config import AttrDict
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ class DashboardState:
         self._lock = threading.Lock()
         self._frame: np.ndarray | None = None
         self._alerts: collections.deque[dict[str, Any]] = collections.deque(maxlen=max_alerts)
+        self._camera: Camera | None = None
 
     def update_frame(self, frame: np.ndarray) -> None:
         with self._lock:
@@ -60,12 +62,21 @@ class DashboardState:
         with self._lock:
             return list(reversed(self._alerts))
 
+    def set_camera(self, cam: Camera) -> None:
+        with self._lock:
+            self._camera = cam
+
+    @property
+    def camera(self) -> Camera | None:
+        with self._lock:
+            return self._camera
+
 
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
 
-def create_app(state: DashboardState, cfg: AttrDict) -> Flask:
+def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -> Flask:
     """Build and return the Flask application."""
     dcfg = cfg.get("dashboard", {})
     auth_cfg = dcfg.get("auth", {})
@@ -179,10 +190,8 @@ def create_app(state: DashboardState, cfg: AttrDict) -> Flask:
     @_require_auth
     def api_zones_get() -> Response:
         if ZONES_JSON_PATH.exists():
-            return Response(
-                ZONES_JSON_PATH.read_text(encoding="utf-8"),
-                mimetype="application/json",
-            )
+            data = json.loads(ZONES_JSON_PATH.read_text(encoding="utf-8"))
+            return jsonify(data.get("zones", []))
         return jsonify([])
 
     @app.route("/api/zones", methods=["POST"])
@@ -192,9 +201,39 @@ def create_app(state: DashboardState, cfg: AttrDict) -> Flask:
         if not isinstance(data, list):
             abort(400)
         ZONES_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-        ZONES_JSON_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        ZONES_JSON_PATH.write_text(json.dumps({"zones": data}, indent=2), encoding="utf-8")
         logger.info("Dashboard: zones updated (%d zones)", len(data))
+        if zone_manager is not None:
+            zone_manager.reload()
         return jsonify({"saved": len(data)})
+
+    @app.route("/api/cameras", methods=["GET"])
+    @_require_auth
+    def api_cameras() -> Response:
+        _labels = {0: "iVCam / Default", 1: "Built-in Webcam"}
+        found = []
+        for i in range(5):
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                found.append({"index": i, "label": _labels.get(i, f"Camera {i}")})
+            cap.release()
+        return jsonify(found)
+
+    @app.route("/api/camera/switch", methods=["POST"])
+    @_require_auth
+    def api_camera_switch() -> Response:
+        body = request.get_json(force=True)
+        source = body.get("source")
+        if not isinstance(source, int):
+            abort(400)
+        cam = state.camera
+        if cam is None:
+            return jsonify({"ok": False, "error": "Camera not initialised"}), 500
+        try:
+            cam.switch_source(source)
+            return jsonify({"ok": True, "source": source})
+        except RuntimeError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 500
 
     return app
 
@@ -203,12 +242,12 @@ def create_app(state: DashboardState, cfg: AttrDict) -> Flask:
 # Thread launcher
 # ---------------------------------------------------------------------------
 
-def start_dashboard(state: DashboardState, cfg: AttrDict) -> threading.Thread:
+def start_dashboard(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -> threading.Thread:
     """Start the Flask dashboard in a background daemon thread."""
     dcfg = cfg.get("dashboard", {})
     host: str = dcfg.get("host", "0.0.0.0")
     port: int = int(dcfg.get("port", 8080))
-    app = create_app(state, cfg)
+    app = create_app(state, cfg, zone_manager)
 
     def _run() -> None:
         logger.info("Dashboard: http://%s:%d  (user: %s)", host, port,

@@ -80,7 +80,8 @@ class ZoneManager:
         if json_path.exists():
             with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            self._zones = _zones_from_list(data.get("zones", []))
+            zone_list = data if isinstance(data, list) else data.get("zones", [])
+            self._zones = _zones_from_list(zone_list)
             logger.info("Loaded %d zone(s) from %s: %s",
                         len(self._zones), json_path, [z.name for z in self._zones])
         else:
@@ -91,6 +92,14 @@ class ZoneManager:
     @property
     def zones(self) -> list[Zone]:
         return self._zones
+
+    def reload(self) -> None:
+        """Re-read zones from JSON_PATH if it exists."""
+        if JSON_PATH.exists():
+            with open(JSON_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._zones = _zones_from_list(data.get("zones", []))
+            logger.info("ZoneManager: reloaded %d zone(s)", len(self._zones))
 
     def save_to_json(self, path: Path | str = JSON_PATH) -> None:
         """Persist current zones to *path* as JSON."""

@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> None:
     dashboard_cfg = cfg.get("dashboard", {})
     dashboard_state = DashboardState(max_alerts=dashboard_cfg.get("max_alerts", 100))
     if dashboard_cfg.get("enabled", True):
-        start_dashboard(dashboard_state, cfg)
+        start_dashboard(dashboard_state, cfg, zone_manager)
     tcfg = cfg.tracker
     tracker = PersonTracker(
         iou_threshold=tcfg["iou_threshold"],
@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> None:
     frame_count = 0
     try:
         with Camera(cfg) as cam:
+            dashboard_state.set_camera(cam)
             for frame in cam.frames():
                 if not _running:
                     break

@@ -55,6 +55,14 @@
   <div id="tab-live" class="tab-pane">
     <div class="text-center">
       <img src="/video_feed" class="img-fluid rounded" style="max-height:82vh; border:2px solid #2d2d5e;" alt="Live feed">
+      <div id="camera-bar" class="d-flex align-items-center justify-content-center gap-2 mt-2">
+        <span class="text-muted small">Camera:</span>
+        <select id="camera-select" class="form-select form-select-sm bg-dark border-secondary text-light" style="width:auto;">
+          <option>Loading...</option>
+        </select>
+        <button class="btn btn-sm btn-outline-primary" onclick="switchCamera()">Connect</button>
+        <span id="camera-status" class="text-muted small"></span>
+      </div>
     </div>
   </div>
 
@@ -169,6 +177,7 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
     if (btn.dataset.tab === 'alerts') loadAlerts();
     if (btn.dataset.tab === 'clips')  loadClips();
     if (btn.dataset.tab === 'zones')  loadZoneEditor();
+    if (btn.dataset.tab === 'live')   loadCameras();
   });
 });
 
@@ -384,6 +393,7 @@ function finishZone() {
   const restricted = document.getElementById('zone-restricted').checked;
   zones.push({ name, points: [...currentPts], restricted, max_occupancy: restricted ? 1 : 5 });
   cancelZone();
+  saveZones();
 }
 
 function cancelZone() {
@@ -397,6 +407,7 @@ function deleteZone(i) {
   if (!confirm(`Delete zone "${zones[i].name}"?`)) return;
   zones.splice(i, 1);
   redraw();
+  saveZones();
 }
 
 let _editModal = null;
@@ -420,6 +431,7 @@ function saveEditZone() {
   zones[i].restricted = document.getElementById('edit-zone-restricted').checked;
   _editModal.hide();
   redraw();
+  saveZones();
 }
 
 // Allow saving edit with Enter key in name field
@@ -434,8 +446,55 @@ function saveZones() {
     body: JSON.stringify(zones),
   }).then(r => r.json()).then(res => {
     setStatus('Saved ' + res.saved + ' zone' + (res.saved !== 1 ? 's' : '') + ' successfully.');
+    refreshFrame();
   }).catch(() => setStatus('Save failed — check the console.', true));
 }
+
+// ── CAMERA SELECTOR ────────────────────────────────────────────────────────
+let activeCameraIndex = 0;
+
+function loadCameras() {
+  fetch('/api/cameras').then(r => r.json()).then(cameras => {
+    const sel = document.getElementById('camera-select');
+    if (!cameras.length) {
+      sel.innerHTML = '<option>No cameras found</option>';
+      return;
+    }
+    sel.innerHTML = cameras.map(c =>
+      `<option value="${c.index}"${c.index === activeCameraIndex ? ' selected' : ''}>${c.label}</option>`
+    ).join('');
+  }).catch(() => {
+    document.getElementById('camera-select').innerHTML = '<option>Error loading cameras</option>';
+  });
+}
+
+function switchCamera() {
+  const sel = document.getElementById('camera-select');
+  const source = parseInt(sel.value, 10);
+  const label = sel.options[sel.selectedIndex].text;
+  const statusEl = document.getElementById('camera-status');
+  statusEl.style.color = '';
+  statusEl.textContent = 'Switching\u2026';
+  fetch('/api/camera/switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source }),
+  }).then(r => r.json()).then(res => {
+    if (res.ok) {
+      activeCameraIndex = source;
+      statusEl.style.color = '';
+      statusEl.textContent = 'Switched to ' + label;
+    } else {
+      statusEl.style.color = '#dc3545';
+      statusEl.textContent = 'Failed: ' + (res.error || 'unknown error');
+    }
+  }).catch(() => {
+    statusEl.style.color = '#dc3545';
+    statusEl.textContent = 'Failed: network error';
+  });
+}
+
+loadCameras();
 </script>
 </body>
 </html>

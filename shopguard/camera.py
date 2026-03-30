@@ -75,6 +75,19 @@ class Camera:
         while True:
             yield self.read()
 
+    def switch_source(self, source: int) -> None:
+        """Release the current capture and reopen with *source*."""
+        logger.info("Camera: switching to source %d", source)
+        self.release()
+        self._cap = cv2.VideoCapture(source)
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
+        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
+        if not self._cap.isOpened():
+            self._cap = None
+            raise RuntimeError(f"Cannot open camera source {source}")
+        logger.info("Camera switched to source %d (%dx%d)",
+                    source, self._cfg["width"], self._cfg["height"])
+
     # -- internals --------------------------------------------------------
 
     def _reconnect(self) -> None:

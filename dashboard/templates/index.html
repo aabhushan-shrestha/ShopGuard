@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ShopGuard Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    body { background: #12121f; color: #e0e0e0; }
+    .navbar-custom { background: #1a1a35; border-bottom: 1px solid #2d2d5e; }
+    .nav-tabs { border-bottom-color: #2d2d5e; }
+    .nav-tabs .nav-link { color: #9090b0; border-color: transparent; }
+    .nav-tabs .nav-link:hover { color: #fff; border-color: transparent; }
+    .nav-tabs .nav-link.active { background: #1e1e40; color: #fff; border-color: #2d2d5e #2d2d5e #1e1e40; }
+    .card-dark { background: #1a1a35; border: 1px solid #2d2d5e; border-radius: 8px; padding: 1rem; }
+    .table { color: #e0e0e0; }
+    .table-dark { --bs-table-bg: #12121f; --bs-table-striped-bg: #1a1a35; }
+    .clip-item { background: #1a1a35; border: 1px solid #2d2d5e; border-radius: 6px;
+                 padding: 8px 12px; margin-bottom: 6px; cursor: pointer; transition: background 0.15s; }
+    .clip-item:hover { background: #252550; }
+    .clip-item.active { border-color: #4d79ff; }
+    #zone-canvas { cursor: crosshair; border: 2px solid #2d2d5e; border-radius: 4px;
+                   display: block; max-width: 100%; }
+    .zone-item { background: #1e1e40; border-radius: 4px; padding: 6px 10px;
+                 margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+    .badge-info    { background-color: #0d6efd !important; }
+    .badge-warning { background-color: #ffc107 !important; color: #000 !important; }
+    .badge-critical { background-color: #dc3545 !important; }
+    input.bg-dark, select.bg-dark { background-color: #1a1a35 !important; color: #e0e0e0 !important; }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #12121f; }
+    ::-webkit-scrollbar-thumb { background: #2d2d5e; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark navbar-custom px-3 mb-0">
+  <span class="navbar-brand fw-bold fs-5">&#128737; ShopGuard</span>
+  <span class="text-muted small">Retail Security Dashboard</span>
+</nav>
+
+<div class="container-fluid px-3 pt-3">
+
+  <ul class="nav nav-tabs mb-3" id="mainTabs">
+    <li class="nav-item"><button class="nav-link active" data-tab="live">&#128249; Live</button></li>
+    <li class="nav-item"><button class="nav-link" data-tab="alerts">&#128680; Alerts</button></li>
+    <li class="nav-item"><button class="nav-link" data-tab="clips">&#127916; Clips</button></li>
+    <li class="nav-item"><button class="nav-link" data-tab="zones">&#128506; Zones</button></li>
+  </ul>
+
+  <!-- ── LIVE ────────────────────────────────────────────────────────── -->
+  <div id="tab-live" class="tab-pane">
+    <div class="text-center">
+      <img src="/video_feed" class="img-fluid rounded" style="max-height:82vh; border:2px solid #2d2d5e;" alt="Live feed">
+    </div>
+  </div>
+
+  <!-- ── ALERTS ──────────────────────────────────────────────────────── -->
+  <div id="tab-alerts" class="tab-pane d-none">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="mb-0 text-muted">Recent Alerts <span id="alert-count" class="badge bg-secondary ms-1">0</span></h6>
+      <button class="btn btn-sm btn-outline-secondary" onclick="loadAlerts()">&#8635; Refresh</button>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-dark table-striped align-middle">
+        <thead class="text-muted">
+          <tr><th>Time</th><th>Level</th><th>Type</th><th>Message</th><th>Zone</th><th>Person</th></tr>
+        </thead>
+        <tbody id="alerts-body">
+          <tr><td colspan="6" class="text-center text-muted py-3">Loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CLIPS ───────────────────────────────────────────────────────── -->
+  <div id="tab-clips" class="tab-pane d-none">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <h6 class="text-muted mb-2">Saved Clips</h6>
+        <div id="clips-list" style="max-height:80vh; overflow-y:auto;"></div>
+      </div>
+      <div class="col-md-9">
+        <div id="clip-viewer" class="d-none">
+          <video id="clip-player" controls class="w-100 rounded mb-2" style="max-height:60vh; background:#000;"></video>
+          <img id="clip-snapshot" class="img-fluid rounded d-none" style="max-height:40vh;" alt="Snapshot">
+        </div>
+        <div id="clips-empty" class="text-muted text-center mt-5">
+          <p>Select a clip to play</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ZONES ───────────────────────────────────────────────────────── -->
+  <div id="tab-zones" class="tab-pane d-none">
+    <div class="row g-3">
+      <div class="col-md-8">
+        <p class="text-muted small mb-1">
+          Click to place points &nbsp;&#8226;&nbsp; Double-click to finish zone &nbsp;&#8226;&nbsp; Esc to cancel
+        </p>
+        <canvas id="zone-canvas"></canvas>
+        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="refreshFrame()">&#8635; Refresh Frame</button>
+      </div>
+      <div class="col-md-4">
+        <div class="card-dark mb-3">
+          <h6 class="mb-3">New Zone</h6>
+          <input id="zone-name" class="form-control form-control-sm bg-dark border-secondary text-light mb-2" placeholder="Zone name (e.g. exit)">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="zone-restricted">
+            <label class="form-check-label text-muted" for="zone-restricted">Restricted (alerts on entry)</label>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-primary" onclick="finishZone()">&#10003; Finish Zone</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="cancelZone()">&#10005; Cancel</button>
+          </div>
+          <p id="zone-status" class="text-muted small mt-2 mb-0"></p>
+        </div>
+        <div class="card-dark">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">Defined Zones</h6>
+            <button class="btn btn-sm btn-success" onclick="saveZones()">&#128190; Save All</button>
+          </div>
+          <div id="zones-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── TAB SWITCHING ──────────────────────────────────────────────────────────
+document.querySelectorAll('[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('d-none'));
+    document.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.remove('d-none');
+    btn.classList.add('active');
+    if (btn.dataset.tab === 'alerts') loadAlerts();
+    if (btn.dataset.tab === 'clips')  loadClips();
+    if (btn.dataset.tab === 'zones')  loadZoneEditor();
+  });
+});
+
+// ── ALERTS ─────────────────────────────────────────────────────────────────
+function loadAlerts() {
+  fetch('/api/alerts').then(r => r.json()).then(alerts => {
+    document.getElementById('alert-count').textContent = alerts.length;
+    const tbody = document.getElementById('alerts-body');
+    if (!alerts.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No alerts yet</td></tr>';
+      return;
+    }
+    const levelBadge = l => ({critical:'danger', warning:'warning', info:'info'}[l] || 'secondary');
+    tbody.innerHTML = alerts.map(a => {
+      const t = new Date(a.timestamp * 1000).toLocaleTimeString();
+      return `<tr>
+        <td class="text-nowrap">${t}</td>
+        <td><span class="badge badge-${a.level} bg-${levelBadge(a.level)}">${a.level.toUpperCase()}</span></td>
+        <td>${a.alert_type}</td>
+        <td>${a.message}</td>
+        <td>${a.zone_name || '<span class="text-muted">—</span>'}</td>
+        <td>${a.person_id !== null && a.person_id !== undefined ? a.person_id : '<span class="text-muted">—</span>'}</td>
+      </tr>`;
+    }).join('');
+  }).catch(() => {});
+}
+setInterval(() => {
+  if (!document.getElementById('tab-alerts').classList.contains('d-none')) loadAlerts();
+}, 5000);
+
+// ── CLIPS ──────────────────────────────────────────────────────────────────
+function loadClips() {
+  fetch('/api/clips').then(r => r.json()).then(clips => {
+    const el = document.getElementById('clips-list');
+    if (!clips.length) {
+      el.innerHTML = '<p class="text-muted small">No clips saved yet.</p>';
+      return;
+    }
+    el.innerHTML = clips.map(c => {
+      const parts = c.stem.split('_');
+      const date = parts[0] || '';
+      const timeStr = parts[1] || '';
+      const type = parts.slice(2).join('_') || '';
+      const label = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)} ${timeStr.slice(0,2)}:${timeStr.slice(2,4)}:${timeStr.slice(4,6)}`;
+      return `<div class="clip-item" id="clip-${c.stem}" onclick="playClip('${c.name}','${c.stem}',${c.has_snapshot})">
+        <div class="small fw-bold text-truncate">${label}</div>
+        <div class="text-muted" style="font-size:0.75rem">${type}</div>
+      </div>`;
+    }).join('');
+  }).catch(() => {});
+}
+
+function playClip(name, stem, hasSnapshot) {
+  document.querySelectorAll('.clip-item').forEach(e => e.classList.remove('active'));
+  const item = document.getElementById('clip-' + stem);
+  if (item) item.classList.add('active');
+
+  const player = document.getElementById('clip-player');
+  const snap   = document.getElementById('clip-snapshot');
+  const viewer = document.getElementById('clip-viewer');
+  const empty  = document.getElementById('clips-empty');
+
+  viewer.classList.remove('d-none');
+  empty.classList.add('d-none');
+  player.src = '/clips/' + name;
+  player.play().catch(() => {});
+
+  if (hasSnapshot) {
+    snap.src = '/clips/' + stem + '_snapshot.jpg';
+    snap.classList.remove('d-none');
+  } else {
+    snap.classList.add('d-none');
+  }
+}
+
+// ── ZONE EDITOR ────────────────────────────────────────────────────────────
+let zones = [];
+let currentPts = [];
+let mousePos = null;
+const ZONE_COLORS = ['#00e5ff','#ff1744','#00e676','#ffea00','#ff6d00','#d500f9'];
+
+function loadZoneEditor() {
+  refreshFrame();
+}
+
+function refreshFrame() {
+  const canvas = document.getElementById('zone-canvas');
+  const img = new Image();
+  img.onload = () => {
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas._bg = img;
+    fetch('/api/zones').then(r => r.json()).then(data => {
+      zones = data || [];
+      redraw();
+    }).catch(() => { zones = []; redraw(); });
+  };
+  img.onerror = () => setStatus('Could not load frame — is detection running?', true);
+  img.src = '/api/frame?' + Date.now();
+}
+
+function redraw() {
+  const canvas = document.getElementById('zone-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (canvas._bg) ctx.drawImage(canvas._bg, 0, 0);
+
+  // Draw saved zones
+  zones.forEach((z, i) => {
+    if (!z.points || z.points.length < 2) return;
+    const hex = ZONE_COLORS[i % ZONE_COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(z.points[0][0], z.points[0][1]);
+    z.points.slice(1).forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.closePath();
+    ctx.fillStyle = hex + '40';   // 25% opacity fill
+    ctx.fill();
+    ctx.strokeStyle = hex;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Label at centroid
+    const cx = z.points.reduce((s, p) => s + p[0], 0) / z.points.length;
+    const cy = z.points.reduce((s, p) => s + p[1], 0) / z.points.length;
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = '#000';
+    ctx.fillText((z.restricted ? '\uD83D\uDD12 ' : '') + z.name, cx - 20 + 1, cy + 1);
+    ctx.fillStyle = '#fff';
+    ctx.fillText((z.restricted ? '\uD83D\uDD12 ' : '') + z.name, cx - 20, cy);
+  });
+
+  // Draw in-progress polygon
+  if (currentPts.length > 0) {
+    const pts = mousePos ? [...currentPts, mousePos] : currentPts;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    pts.slice(1).forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    currentPts.forEach((p, i) => {
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], i === 0 ? 6 : 4, 0, 2 * Math.PI);
+      ctx.fillStyle = i === 0 ? '#ffea00' : '#ffffff';
+      ctx.fill();
+    });
+    setStatus(`${currentPts.length} point${currentPts.length !== 1 ? 's' : ''} — double-click or click Finish Zone`);
+  } else {
+    setStatus('Click on the canvas to start drawing a zone');
+  }
+
+  updateZonesList();
+}
+
+function setStatus(msg, isError) {
+  const el = document.getElementById('zone-status');
+  el.textContent = msg;
+  el.className = 'small mt-2 mb-0 ' + (isError ? 'text-danger' : 'text-muted');
+}
+
+function updateZonesList() {
+  const el = document.getElementById('zones-list');
+  if (!zones.length) {
+    el.innerHTML = '<p class="text-muted small">No zones defined.</p>';
+    return;
+  }
+  el.innerHTML = zones.map((z, i) => {
+    const hex = ZONE_COLORS[i % ZONE_COLORS.length];
+    return `<div class="zone-item">
+      <div class="d-flex align-items-center gap-2">
+        <span style="display:inline-block;width:12px;height:12px;background:${hex};border-radius:2px;"></span>
+        <span class="small">${z.restricted ? '&#128274; ' : ''}${z.name}</span>
+      </div>
+      <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteZone(${i})" style="font-size:0.7rem">&#10005;</button>
+    </div>`;
+  }).join('');
+}
+
+// Canvas events
+const zCanvas = document.getElementById('zone-canvas');
+
+zCanvas.addEventListener('click', e => {
+  const r = zCanvas.getBoundingClientRect();
+  const sx = zCanvas.width / r.width, sy = zCanvas.height / r.height;
+  currentPts.push([Math.round((e.clientX - r.left) * sx), Math.round((e.clientY - r.top) * sy)]);
+  redraw();
+});
+
+zCanvas.addEventListener('dblclick', e => {
+  e.preventDefault();
+  if (currentPts.length > 0) currentPts.pop(); // undo extra click from dblclick
+  finishZone();
+});
+
+zCanvas.addEventListener('mousemove', e => {
+  const r = zCanvas.getBoundingClientRect();
+  mousePos = [(e.clientX - r.left) * (zCanvas.width / r.width),
+              (e.clientY - r.top)  * (zCanvas.height / r.height)];
+  if (currentPts.length > 0) redraw();
+});
+
+zCanvas.addEventListener('mouseleave', () => { mousePos = null; if (currentPts.length > 0) redraw(); });
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cancelZone(); });
+
+function finishZone() {
+  if (currentPts.length < 3) { setStatus('Need at least 3 points.', true); return; }
+  const name = document.getElementById('zone-name').value.trim() || ('Zone ' + (zones.length + 1));
+  const restricted = document.getElementById('zone-restricted').checked;
+  zones.push({ name, points: [...currentPts], restricted, max_occupancy: restricted ? 1 : 5 });
+  cancelZone();
+}
+
+function cancelZone() {
+  currentPts = [];
+  document.getElementById('zone-name').value = '';
+  document.getElementById('zone-restricted').checked = false;
+  redraw();
+}
+
+function deleteZone(i) { zones.splice(i, 1); redraw(); }
+
+function saveZones() {
+  fetch('/api/zones', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(zones),
+  }).then(r => r.json()).then(res => {
+    setStatus('Saved ' + res.saved + ' zone' + (res.saved !== 1 ? 's' : '') + ' successfully.');
+  }).catch(() => setStatus('Save failed — check the console.', true));
+}
+</script>
+</body>
+</html>

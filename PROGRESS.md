@@ -119,17 +119,17 @@
 
 ---
 
-## Phase 7: Dashboard & Review UI ⬅️ YOU ARE HERE
+## Phase 7: Dashboard & Review UI ✅ COMPLETE
 
 **Goal:** A simple web interface to review alerts, watch clips, and manage zones.
 
 **Files:**
-- `dashboard/` — web app (Flask or FastAPI + simple HTML)
-- `shopguard/api.py` — endpoints for the dashboard
+- `shopguard/api.py` — Flask app factory, DashboardState, all routes
+- `dashboard/templates/index.html` — single-page dashboard UI
 
 **Tasks:**
-- [ ] Live view of the camera feed in the browser
-- [ ] Alert feed showing recent events
-- [ ] Clip playback from saved recordings
-- [ ] Zone editor in the browser (drag-and-drop polygons)
-- [ ] Basic auth so only staff can access it
+- [x] Live view of the camera feed in the browser
+- [x] Alert feed showing recent events
+- [x] Clip playback from saved recordings
+- [x] Zone editor in the browser (click-to-draw polygons)
+- [x] Basic auth so only staff can access it

@@ -9,6 +9,7 @@ import sys
 
 from shopguard import config as config_mod
 from shopguard.alerts import AlertManager
+from shopguard.api import DashboardState, start_dashboard
 from shopguard.behavior import BehaviorAnalyzer
 from shopguard.camera import Camera
 from shopguard.detector import Detector
@@ -56,6 +57,11 @@ def main(argv: list[str] | None = None) -> None:
     alert_manager = AlertManager(cfg)
     behavior_analyzer = BehaviorAnalyzer(cfg)
     recorder = ClipRecorder(cfg)
+
+    dashboard_cfg = cfg.get("dashboard", {})
+    dashboard_state = DashboardState(max_alerts=dashboard_cfg.get("max_alerts", 100))
+    if dashboard_cfg.get("enabled", True):
+        start_dashboard(dashboard_state, cfg)
     tcfg = cfg.tracker
     tracker = PersonTracker(
         iou_threshold=tcfg["iou_threshold"],
@@ -79,10 +85,12 @@ def main(argv: list[str] | None = None) -> None:
                 fired_alerts = alert_manager.check_and_alert(zone_statuses, behavior_events)
                 display.draw(frame, detections, zone_manager, zone_statuses, tracked, behavior_events)
 
-                # Push annotated frame (after draw) and trigger clips for new alerts
+                # Push annotated frame (after draw), trigger clips, update dashboard
                 recorder.push_frame(frame)
                 for alert in fired_alerts:
                     recorder.trigger(alert)
+                    dashboard_state.add_alert(alert)
+                dashboard_state.update_frame(frame)
 
                 if not display.show(frame):
                     break

@@ -61,6 +61,15 @@ behavior:
   pace_reversals: 4    # direction changes required to flag pacing
   pace_window: 90      # frames to look back when checking for pacing
 
+dashboard:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8080
+  max_alerts: 100
+  auth:
+    username: "admin"
+    password: "shopguard"   # change before deploying
+
 recorder:
   enabled: true
   clips_dir: "clips"

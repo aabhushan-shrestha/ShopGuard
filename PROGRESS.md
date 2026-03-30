@@ -68,7 +68,7 @@
 
 ---
 
-## Phase 4: Behavior Analysis ⬅️ YOU ARE HERE
+## Phase 4: Behavior Analysis ✅ COMPLETE
 
 **Goal:** Use tracking history and zone data to flag suspicious patterns.
 
@@ -77,15 +77,15 @@
 - `shopguard/tracker.py` — extend with path history per person
 
 **Tasks:**
-- [ ] Store each person's position history (list of centroid coordinates over time)
-- [ ] Detect loitering: person stays in the same zone for longer than a threshold
-- [ ] Detect zone violations: person enters a restricted zone
-- [ ] Detect unusual movement: pacing, repeated back-and-forth in the same area
-- [ ] Each rule returns a suspicion event with type, person ID, confidence, and timestamp
+- [x] Store each person's position history (list of centroid coordinates over time)
+- [x] Detect loitering: person stays in the same zone for longer than a threshold
+- [x] Detect zone violations: person enters a restricted zone
+- [x] Detect unusual movement: pacing, repeated back-and-forth in the same area
+- [x] Each rule returns a suspicion event with type, person ID, confidence, and timestamp
 
 ---
 
-## Phase 5: Alert System
+## Phase 5: Alert System ⬅️ YOU ARE HERE
 
 **Goal:** When suspicious behavior is detected, notify staff immediately.
 

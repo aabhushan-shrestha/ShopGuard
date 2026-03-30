@@ -9,6 +9,7 @@ import sys
 
 from shopguard import config as config_mod
 from shopguard.alerts import AlertManager
+from shopguard.behavior import BehaviorAnalyzer
 from shopguard.camera import Camera
 from shopguard.detector import Detector
 from shopguard.display import Display
@@ -52,10 +53,12 @@ def main(argv: list[str] | None = None) -> None:
     display = Display(cfg)
     zone_manager = ZoneManager(cfg)
     alert_manager = AlertManager(cfg)
+    behavior_analyzer = BehaviorAnalyzer(cfg)
     tcfg = cfg.tracker
     tracker = PersonTracker(
         iou_threshold=tcfg["iou_threshold"],
         max_lost=tcfg["max_lost"],
+        max_history=tcfg.get("max_history", 300),
     )
 
     try:
@@ -69,7 +72,10 @@ def main(argv: list[str] | None = None) -> None:
                 tracked = tracker.update(detections)
                 zone_statuses = zone_manager.check_occupancy(detections)
                 alert_manager.check_and_alert(zone_statuses)
-                display.draw(frame, detections, zone_manager, zone_statuses, tracked)
+                behavior_events = behavior_analyzer.analyze(
+                    tracker.active_tracks, zone_manager.zones
+                )
+                display.draw(frame, detections, zone_manager, zone_statuses, tracked, behavior_events)
 
                 if not display.show(frame):
                     break

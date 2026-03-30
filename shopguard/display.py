@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 
 if TYPE_CHECKING:
+    from shopguard.behavior import SuspicionEvent
     from shopguard.config import AttrDict
     from shopguard.detector import Detection
     from shopguard.tracker import PersonTracker
@@ -40,29 +41,54 @@ class Display:
         zone_manager: ZoneManager | None = None,
         zone_statuses: list[ZoneStatus] | None = None,
         tracked: list[tuple[int, Detection]] | None = None,
+        suspicion_events: list[SuspicionEvent] | None = None,
     ) -> np.ndarray:
         """Draw bounding boxes, zone overlays, and HUD onto *frame* (mutates in place).
 
         If *tracked* is provided, person IDs are shown instead of raw detections.
+        Suspicious persons are highlighted in red with their event type(s).
         """
         if zone_manager is not None and zone_statuses is not None:
             zone_manager.draw_zones(frame, zone_statuses)
 
-        items: list[tuple[str, Detection]]
-        if tracked is not None:
-            items = [(f"ID {tid} {det.confidence:.2f}", det) for tid, det in tracked]
-        else:
-            items = [(f"person {det.confidence:.2f}", det) for det in detections]
+        # Build per-person event type set for quick lookup
+        event_types: dict[int, set[str]] = {}
+        if suspicion_events:
+            for ev in suspicion_events:
+                event_types.setdefault(ev.person_id, set()).add(ev.type)
 
-        for label, det in items:
+        items: list[tuple[int | None, str, Detection]]
+        if tracked is not None:
+            items = [(tid, f"ID {tid} {det.confidence:.2f}", det) for tid, det in tracked]
+        else:
+            items = [(None, f"person {det.confidence:.2f}", det) for det in detections]
+
+        _ALERT_COLOR = (0, 0, 255)  # red for suspicious persons
+
+        for tid, label, det in items:
+            types = event_types.get(tid) if tid is not None else None
+            color = _ALERT_COLOR if types else self._bbox_color
+            if types:
+                label = f"ID {tid} [{', '.join(sorted(types))}]"
             cv2.rectangle(
                 frame, (det.x1, det.y1), (det.x2, det.y2),
-                self._bbox_color, self._bbox_thickness,
+                color, self._bbox_thickness,
             )
             cv2.putText(
                 frame, label, (det.x1, det.y1 - 8),
                 cv2.FONT_HERSHEY_SIMPLEX, self._font_scale,
-                self._bbox_color, 1,
+                color, 1,
+            )
+
+        # Alert banner: flash a red border + message when any suspicious event is active
+        if event_types:
+            h, w = frame.shape[:2]
+            cv2.rectangle(frame, (0, 0), (w - 1, h - 1), (0, 0, 255), 6)
+            unique_types = sorted({t for ts in event_types.values() for t in ts})
+            banner = "ALERT: " + ", ".join(unique_types).upper()
+            cv2.putText(
+                frame, banner, (10, h - 15),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2,
             )
 
         now = time.time()

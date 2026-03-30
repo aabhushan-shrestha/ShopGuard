@@ -45,6 +45,12 @@ alerts:
 tracker:
   iou_threshold: 0.3
   max_lost: 30
+  max_history: 300   # centroid history length per person (~10s at 30fps)
+
+behavior:
+  loiter_frames: 150   # frames before flagging loitering (~5s at 30fps)
+  pace_reversals: 4    # direction changes required to flag pacing
+  pace_window: 90      # frames to look back when checking for pacing
 
 logging:
   level: "INFO"

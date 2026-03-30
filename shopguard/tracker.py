@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from shopguard.detector import Detection
 
@@ -15,6 +15,7 @@ class Track:
     id: int
     detection: Detection
     last_seen: int
+    history: list[tuple[int, int]] = field(default_factory=list)
 
 
 def _iou(a: Detection, b: Detection) -> float:
@@ -34,12 +35,23 @@ def _iou(a: Detection, b: Detection) -> float:
 class PersonTracker:
     """Assigns stable integer IDs to detected persons using greedy IoU matching."""
 
-    def __init__(self, iou_threshold: float = 0.3, max_lost: int = 30) -> None:
+    def __init__(
+        self,
+        iou_threshold: float = 0.3,
+        max_lost: int = 30,
+        max_history: int = 300,
+    ) -> None:
         self._iou_threshold = iou_threshold
         self._max_lost = max_lost
+        self._max_history = max_history
         self._tracks: dict[int, Track] = {}
         self._next_id = 1
         self._frame = 0
+
+    @property
+    def active_tracks(self) -> dict[int, Track]:
+        """Return all currently active tracks (keyed by track ID)."""
+        return self._tracks
 
     def update(self, detections: list[Detection]) -> list[tuple[int, Detection]]:
         """Match *detections* to existing tracks.
@@ -51,7 +63,8 @@ class PersonTracker:
         # Bootstrap: no existing tracks yet
         if not self._tracks:
             for det in detections:
-                self._tracks[self._next_id] = Track(self._next_id, det, self._frame)
+                cx, cy = det.center
+                self._tracks[self._next_id] = Track(self._next_id, det, self._frame, [(cx, cy)])
                 self._next_id += 1
             return [(t.id, t.detection) for t in self._tracks.values()]
 
@@ -73,13 +86,18 @@ class PersonTracker:
                 continue
             self._tracks[tid].detection = detections[di]
             self._tracks[tid].last_seen = self._frame
+            cx, cy = detections[di].center
+            self._tracks[tid].history.append((cx, cy))
+            if len(self._tracks[tid].history) > self._max_history:
+                self._tracks[tid].history = self._tracks[tid].history[-self._max_history:]
             matched_tracks.add(tid)
             matched_dets.add(di)
 
         # Spawn new tracks for unmatched detections
         for di, det in enumerate(detections):
             if di not in matched_dets:
-                self._tracks[self._next_id] = Track(self._next_id, det, self._frame)
+                cx, cy = det.center
+                self._tracks[self._next_id] = Track(self._next_id, det, self._frame, [(cx, cy)])
                 logger.debug("New track %d at frame %d", self._next_id, self._frame)
                 self._next_id += 1
 

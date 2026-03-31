@@ -1,148 +1,629 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ShopGuard Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <style>
-    body { background: #12121f; color: #e0e0e0; }
-    .navbar-custom { background: #1a1a35; border-bottom: 1px solid #2d2d5e; }
-    .nav-tabs { border-bottom-color: #2d2d5e; }
-    .nav-tabs .nav-link { color: #9090b0; border-color: transparent; }
-    .nav-tabs .nav-link:hover { color: #fff; border-color: transparent; }
-    .nav-tabs .nav-link.active { background: #1e1e40; color: #fff; border-color: #2d2d5e #2d2d5e #1e1e40; }
-    .card-dark { background: #1a1a35; border: 1px solid #2d2d5e; border-radius: 8px; padding: 1rem; }
-    .table { color: #e0e0e0; }
-    .table-dark { --bs-table-bg: #12121f; --bs-table-striped-bg: #1a1a35; }
-    .clip-item { background: #1a1a35; border: 1px solid #2d2d5e; border-radius: 6px;
-                 padding: 8px 12px; margin-bottom: 6px; cursor: pointer; transition: background 0.15s; }
-    .clip-item:hover { background: #252550; }
-    .clip-item.active { border-color: #4d79ff; }
-    #zone-canvas { cursor: crosshair; border: 2px solid #2d2d5e; border-radius: 4px;
-                   display: block; max-width: 100%; }
-    .zone-item { background: #1e1e40; border-radius: 4px; padding: 6px 10px;
-                 margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;
-                 border-left: 3px solid transparent; }
-    .zone-empty-state { background: #1e1e40; border: 2px dashed #2d2d5e; border-radius: 8px;
-                        padding: 2rem 1rem; text-align: center; color: #9090b0; }
+    /* ── THEME VARIABLES ─────────────────────────────────────────────────── */
+    :root[data-theme="dark"] {
+      --bg-base: #111117;
+      --bg-surface: #1a1a24;
+      --bg-hover: #22222f;
+      --bg-active: #2a2a3a;
+      --border: #2e2e40;
+      --text-primary: #f0f0f0;
+      --text-secondary: #9090a8;
+      --text-muted: #5a5a72;
+      --accent: #5b6ef5;
+      --accent-hover: #4a5de0;
+      --danger: #e05555;
+      --success: #3dbf7a;
+      --warning: #e0a030;
+      --badge-bg: #2a2a3a;
+    }
+    :root[data-theme="light"] {
+      --bg-base: #f5f5f7;
+      --bg-surface: #ffffff;
+      --bg-hover: #f0f0f4;
+      --bg-active: #e8e8f0;
+      --border: #dddde8;
+      --text-primary: #111117;
+      --text-secondary: #44445a;
+      --text-muted: #88889a;
+      --accent: #4a5de0;
+      --accent-hover: #3a4dcf;
+      --danger: #d04040;
+      --success: #2da060;
+      --warning: #c07020;
+      --badge-bg: #ebebf5;
+    }
+
+    /* ── BASE ─────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      transition: background 0.2s, color 0.2s;
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── NAVBAR ───────────────────────────────────────────────────────────── */
+    .sg-navbar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .sg-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sg-logo-icon { font-size: 1.25rem; }
+    .sg-logo-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+    .sg-logo-sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      line-height: 1;
+    }
+    .sg-navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .sg-theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1rem;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sg-theme-toggle:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+    .sg-live-status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .sg-live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* ── TAB BAR ─────────────────────────────────────────────────────────── */
+    .sg-tabbar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sg-tab {
+      background: none;
+      border: none;
+      border-radius: 20px;
+      padding: 6px 14px;
+      margin: 7px 0;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .sg-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .sg-tab.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ── CONTENT ─────────────────────────────────────────────────────────── */
+    .sg-content { padding: 20px; }
+
+    /* ── LIVE TAB ────────────────────────────────────────────────────────── */
+    .sg-feed-wrap { text-align: center; }
+    .sg-feed-wrap img {
+      max-height: 82vh;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+    }
+    .sg-camera-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 14px;
+      margin-top: 12px;
+    }
+    .sg-camera-bar .cam-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .sg-camera-bar select {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      padding: 4px 8px;
+      font-size: 0.82rem;
+    }
+    .sg-camera-bar select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    .sg-btn-connect {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      padding: 5px 12px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .sg-btn-connect:hover { background: var(--accent-hover); }
+    #camera-status { font-size: 0.78rem; color: var(--text-muted); }
+
+    /* ── ALERTS TAB ──────────────────────────────────────────────────────── */
+    .sg-alerts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .sg-alerts-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sg-count-badge {
+      background: var(--badge-bg);
+      color: var(--text-secondary);
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 0.72rem;
+    }
+    .sg-btn-ghost {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sg-btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .sg-alert-list { display: flex; flex-direction: column; gap: 6px; }
+    .sg-alert-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      border-left: 4px solid var(--border);
+    }
+    .sg-alert-row.level-critical { border-left-color: var(--danger); }
+    .sg-alert-row.level-warning  { border-left-color: var(--warning); }
+    .sg-alert-row.level-info     { border-left-color: var(--accent); }
+    .sg-alert-time {
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      min-width: 75px;
+    }
+    .sg-level-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      border-radius: 20px;
+      padding: 2px 9px;
+      white-space: nowrap;
+    }
+    .sg-level-badge.critical {
+      background: rgba(224,85,85,0.15);
+      color: var(--danger);
+    }
+    .sg-level-badge.warning {
+      background: rgba(224,160,48,0.15);
+      color: var(--warning);
+    }
+    .sg-level-badge.info {
+      background: rgba(91,110,245,0.15);
+      color: var(--accent);
+    }
+    .sg-level-badge.secondary {
+      background: var(--badge-bg);
+      color: var(--text-secondary);
+    }
+    .sg-alert-type { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
+    .sg-alert-msg  { font-size: 0.85rem; color: var(--text-primary); flex: 1; }
+    .sg-chip {
+      background: var(--badge-bg);
+      color: var(--text-secondary);
+      border-radius: 20px;
+      padding: 2px 9px;
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+    .sg-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 0;
+      color: var(--text-muted);
+      gap: 8px;
+    }
+    .sg-empty-state .sg-empty-icon { font-size: 2rem; }
+    .sg-empty-state p { margin: 0; font-size: 0.85rem; }
+
+    /* ── CLIPS TAB ───────────────────────────────────────────────────────── */
+    .clip-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .clip-item:hover { background: var(--bg-hover); }
+    .clip-item.active { border-left: 3px solid var(--accent); }
+    .clip-item .clip-title { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
+    .clip-item .clip-type  { font-size: 0.73rem; color: var(--text-muted); }
+    #clip-player {
+      background: #000;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .clips-col-label { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 10px; font-weight: 600; }
+
+    /* ── ZONES TAB ───────────────────────────────────────────────────────── */
+    #zone-canvas {
+      cursor: crosshair;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: block;
+      max-width: 100%;
+    }
+    .sg-btn-refresh {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .sg-btn-refresh:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .point-counter {
+      display: inline-block;
+      background: var(--badge-bg);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 12px;
+      font-size: 0.78rem;
+      margin-left: 6px;
+    }
+    .sg-zone-hint { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; }
+    .sg-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .sg-card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 14px;
+    }
+    .sg-form-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: block;
+      margin-bottom: 5px;
+    }
+    .sg-input {
+      width: 100%;
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      padding: 6px 10px;
+      font-size: 0.83rem;
+      transition: border-color 0.15s;
+    }
+    .sg-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(91,110,245,0.18); }
+    .sg-input::placeholder { color: var(--text-muted); }
+    /* Custom checkbox */
+    .sg-check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .sg-check-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .sg-check-label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+    .sg-check-label .check-sub { color: var(--text-muted); font-weight: 400; }
+    .sg-btn-finish {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .sg-btn-finish:hover { background: var(--accent-hover); }
+    .sg-btn-cancel {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .sg-btn-cancel:hover { background: var(--bg-hover); color: var(--text-primary); }
+    #zone-status { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
+    #zone-status.text-danger { color: var(--danger); }
+    .sg-btn-save-all {
+      background: var(--success);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .sg-btn-save-all:hover { opacity: 0.85; }
+    /* Zone list items */
+    .zone-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 3px solid transparent;
+    }
+    .zone-item .zone-name  { font-size: 0.83rem; font-weight: 600; color: var(--text-primary); }
+    .zone-item .zone-badge {
+      background: var(--badge-bg);
+      color: var(--text-secondary);
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+    .zone-item .zone-badge.restricted { background: rgba(224,85,85,0.15); color: var(--danger); }
+    .zone-item .zone-occ  { font-size: 0.7rem; color: var(--text-muted); }
+    .zone-item .zone-btns button {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      padding: 1px 7px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .zone-item .zone-btns button:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .zone-item .zone-btns button.del:hover { background: rgba(224,85,85,0.12); color: var(--danger); border-color: var(--danger); }
+    .zone-empty-state {
+      background: var(--bg-base);
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--text-muted);
+    }
     .zone-empty-state .zone-empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-    .point-counter { display: inline-block; background: #1e1e40; border: 1px solid #2d2d5e;
-                     border-radius: 4px; padding: 2px 10px; font-size: 0.78rem; color: #9090b0; margin-top: 6px; }
-    .modal-dark .modal-content { background: #1a1a35; border: 1px solid #2d2d5e; color: #e0e0e0; }
-    .modal-dark .modal-header { border-bottom-color: #2d2d5e; }
-    .modal-dark .modal-footer { border-top-color: #2d2d5e; }
-    .modal-dark .btn-close { filter: invert(1) grayscale(1); }
-    .badge-info    { background-color: #0d6efd !important; }
-    .badge-warning { background-color: #ffc107 !important; color: #000 !important; }
-    .badge-critical { background-color: #dc3545 !important; }
-    input.bg-dark, select.bg-dark { background-color: #1a1a35 !important; color: #e0e0e0 !important; }
-    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #12121f; }
-    ::-webkit-scrollbar-thumb { background: #2d2d5e; border-radius: 3px; }
+    .zone-count-badge {
+      background: var(--badge-bg);
+      color: var(--text-secondary);
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 0.72rem;
+    }
+
+    /* ── MODAL ───────────────────────────────────────────────────────────── */
+    .modal-content {
+      background: var(--bg-surface) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text-primary) !important;
+    }
+    .modal-header { border-bottom-color: var(--border) !important; }
+    .modal-footer { border-top-color: var(--border) !important; }
+    .modal-title  { color: var(--text-primary) !important; font-size: 0.95rem; }
+    .btn-close    { filter: invert(0.7); }
+    [data-theme="dark"] .btn-close { filter: invert(1) grayscale(1); }
+    .modal-label  { font-size: 0.78rem; color: var(--text-secondary); display: block; margin-bottom: 5px; }
+    .modal .sg-btn-ghost { margin-right: 4px; }
   </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark navbar-custom px-3 mb-0">
-  <span class="navbar-brand fw-bold fs-5">&#128737; ShopGuard</span>
-  <span class="text-muted small">Retail Security Dashboard</span>
+<!-- ── NAVBAR ─────────────────────────────────────────────────────────────── -->
+<nav class="sg-navbar">
+  <div class="sg-logo">
+    <span class="sg-logo-icon">&#128737;</span>
+    <div>
+      <div class="sg-logo-name">ShopGuard</div>
+      <div class="sg-logo-sub">Retail Security</div>
+    </div>
+  </div>
+  <div class="sg-navbar-right">
+    <button class="sg-theme-toggle" id="theme-toggle" title="Toggle theme" onclick="toggleTheme()">🌙</button>
+    <div class="sg-live-status">
+      <div class="sg-live-dot"></div>
+      <span>Live</span>
+    </div>
+  </div>
 </nav>
 
-<div class="container-fluid px-3 pt-3">
+<!-- ── TAB BAR ────────────────────────────────────────────────────────────── -->
+<div class="sg-tabbar">
+  <button class="sg-tab active" data-tab="live">&#128249; Live</button>
+  <button class="sg-tab" data-tab="alerts">&#128680; Alerts</button>
+  <button class="sg-tab" data-tab="clips">&#127916; Clips</button>
+  <button class="sg-tab" data-tab="zones">&#128506; Zones</button>
+</div>
 
-  <ul class="nav nav-tabs mb-3" id="mainTabs">
-    <li class="nav-item"><button class="nav-link active" data-tab="live">&#128249; Live</button></li>
-    <li class="nav-item"><button class="nav-link" data-tab="alerts">&#128680; Alerts</button></li>
-    <li class="nav-item"><button class="nav-link" data-tab="clips">&#127916; Clips</button></li>
-    <li class="nav-item"><button class="nav-link" data-tab="zones">&#128506; Zones</button></li>
-  </ul>
+<div class="sg-content">
 
-  <!-- ── LIVE ────────────────────────────────────────────────────────── -->
+  <!-- ── LIVE ────────────────────────────────────────────────────────────── -->
   <div id="tab-live" class="tab-pane">
-    <div class="text-center">
-      <img src="/video_feed" class="img-fluid rounded" style="max-height:82vh; border:2px solid #2d2d5e;" alt="Live feed">
-      <div id="camera-bar" class="d-flex align-items-center justify-content-center gap-2 mt-2">
-        <span class="text-muted small">Camera:</span>
-        <select id="camera-select" class="form-select form-select-sm bg-dark border-secondary text-light" style="width:auto;">
-          <option>Loading...</option>
-        </select>
-        <button class="btn btn-sm btn-outline-primary" onclick="switchCamera()">Connect</button>
-        <span id="camera-status" class="text-muted small"></span>
+    <div class="sg-feed-wrap">
+      <img src="/video_feed" class="img-fluid" alt="Live feed">
+      <div>
+        <div id="camera-bar" class="sg-camera-bar">
+          <span class="cam-label">Camera:</span>
+          <select id="camera-select">
+            <option>Loading...</option>
+          </select>
+          <button class="sg-btn-connect" onclick="switchCamera()">Connect</button>
+          <span id="camera-status"></span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ── ALERTS ──────────────────────────────────────────────────────── -->
+  <!-- ── ALERTS ──────────────────────────────────────────────────────────── -->
   <div id="tab-alerts" class="tab-pane d-none">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h6 class="mb-0 text-muted">Recent Alerts <span id="alert-count" class="badge bg-secondary ms-1">0</span></h6>
-      <button class="btn btn-sm btn-outline-secondary" onclick="loadAlerts()">&#8635; Refresh</button>
+    <div class="sg-alerts-header">
+      <div class="sg-alerts-title">
+        Recent Alerts
+        <span id="alert-count" class="sg-count-badge">0</span>
+      </div>
+      <button class="sg-btn-ghost" onclick="loadAlerts()">&#8635; Refresh</button>
     </div>
-    <div class="table-responsive">
-      <table class="table table-sm table-dark table-striped align-middle">
-        <thead class="text-muted">
-          <tr><th>Time</th><th>Level</th><th>Type</th><th>Message</th><th>Zone</th><th>Person</th></tr>
-        </thead>
-        <tbody id="alerts-body">
-          <tr><td colspan="6" class="text-center text-muted py-3">Loading&hellip;</td></tr>
-        </tbody>
-      </table>
+    <div id="alerts-body" class="sg-alert-list">
+      <div class="sg-empty-state">
+        <div class="sg-empty-icon">&#128680;</div>
+        <p>Loading&hellip;</p>
+      </div>
     </div>
   </div>
 
-  <!-- ── CLIPS ───────────────────────────────────────────────────────── -->
+  <!-- ── CLIPS ───────────────────────────────────────────────────────────── -->
   <div id="tab-clips" class="tab-pane d-none">
     <div class="row g-3">
       <div class="col-md-3">
-        <h6 class="text-muted mb-2">Saved Clips</h6>
+        <div class="clips-col-label">Saved Clips</div>
         <div id="clips-list" style="max-height:80vh; overflow-y:auto;"></div>
       </div>
       <div class="col-md-9">
         <div id="clip-viewer" class="d-none">
-          <video id="clip-player" controls class="w-100 rounded mb-2" style="max-height:60vh; background:#000;"></video>
+          <video id="clip-player" controls class="w-100 mb-2" style="max-height:60vh;"></video>
           <img id="clip-snapshot" class="img-fluid rounded d-none" style="max-height:40vh;" alt="Snapshot">
         </div>
-        <div id="clips-empty" class="text-muted text-center mt-5">
+        <div id="clips-empty" class="sg-empty-state">
+          <div class="sg-empty-icon">&#127916;</div>
           <p>Select a clip to play</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── ZONES ───────────────────────────────────────────────────────── -->
+  <!-- ── ZONES ───────────────────────────────────────────────────────────── -->
   <div id="tab-zones" class="tab-pane d-none">
     <div class="row g-3">
       <div class="col-md-8">
-        <p class="text-muted small mb-1">
+        <p class="sg-zone-hint">
           Click to place points &nbsp;&#8226;&nbsp; Double-click to finish zone &nbsp;&#8226;&nbsp; Esc to cancel
         </p>
         <canvas id="zone-canvas"></canvas>
-        <div>
-          <button class="btn btn-sm btn-outline-secondary mt-2 me-2" onclick="refreshFrame()">&#8635; Refresh Frame</button>
+        <div class="mt-2 d-flex align-items-center">
+          <button class="sg-btn-refresh" onclick="refreshFrame()">&#8635; Refresh Frame</button>
           <span id="point-counter" class="point-counter">Points placed: 0</span>
         </div>
       </div>
       <div class="col-md-4">
-        <div class="card-dark mb-3">
-          <h6 class="mb-3 fw-bold" style="color:#e0e0e0;">New Zone</h6>
-          <label class="form-label small fw-semibold" style="color:#c0c0d0;">Zone Name</label>
-          <input id="zone-name" class="form-control form-control-sm bg-dark border-secondary text-light mb-2" placeholder="e.g. exit, cashier">
-          <div class="form-check mb-2 d-flex align-items-center gap-2">
-            <input class="form-check-input" type="checkbox" id="zone-restricted" style="width:1.1em;height:1.1em;">
-            <label class="form-check-label fw-semibold" for="zone-restricted" style="color:#e0e0e0;">Restricted <span class="text-muted fw-normal">(alerts on entry)</span></label>
+        <div class="sg-card">
+          <div class="sg-card-title">New Zone</div>
+          <label class="sg-form-label" for="zone-name">Zone Name</label>
+          <input id="zone-name" class="sg-input mb-2" placeholder="e.g. exit, cashier">
+          <div class="sg-check-row">
+            <input type="checkbox" id="zone-restricted">
+            <label class="sg-check-label" for="zone-restricted">
+              Restricted <span class="check-sub">(alerts on entry)</span>
+            </label>
           </div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-primary" onclick="finishZone()">&#10003; Finish Zone</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="cancelZone()">&#10005; Cancel</button>
+          <div class="d-flex gap-2 mt-2">
+            <button class="sg-btn-finish" onclick="finishZone()">&#10003; Finish Zone</button>
+            <button class="sg-btn-cancel" onclick="cancelZone()">&#10005; Cancel</button>
           </div>
-          <p id="zone-status" class="text-muted small mt-2 mb-0"></p>
+          <p id="zone-status" class="mb-0"></p>
         </div>
-        <div class="card-dark">
+        <div class="sg-card">
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="mb-0 fw-bold" style="color:#e0e0e0;">
-              Defined Zones <span id="zone-count-badge" class="badge bg-primary ms-1">0</span>
-            </h6>
-            <button class="btn btn-sm btn-success" onclick="saveZones()">&#128190; Save All</button>
+            <div class="sg-card-title mb-0 d-flex align-items-center gap-2">
+              Defined Zones
+              <span id="zone-count-badge" class="zone-count-badge">0</span>
+            </div>
+            <button class="sg-btn-save-all" onclick="saveZones()">&#128190; Save All</button>
           </div>
           <div id="zones-list"></div>
         </div>
@@ -150,10 +631,10 @@
     </div>
   </div>
 
-</div><!-- /container -->
+</div><!-- /sg-content -->
 
 <!-- ── ZONE EDIT MODAL ──────────────────────────────────────────────────── -->
-<div class="modal fade modal-dark" id="editZoneModal" tabindex="-1" aria-labelledby="editZoneModalLabel" aria-hidden="true">
+<div class="modal fade" id="editZoneModal" tabindex="-1" aria-labelledby="editZoneModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-sm modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header py-2">
@@ -162,16 +643,18 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="edit-zone-index">
-        <label class="form-label text-muted small mb-1">Zone Name</label>
-        <input id="edit-zone-name" class="form-control form-control-sm bg-dark border-secondary text-light mb-3" placeholder="Zone name">
-        <div class="form-check mb-1">
-          <input class="form-check-input" type="checkbox" id="edit-zone-restricted">
-          <label class="form-check-label text-muted small" for="edit-zone-restricted">Restricted (alerts on entry)</label>
+        <label class="modal-label" for="edit-zone-name">Zone Name</label>
+        <input id="edit-zone-name" class="sg-input mb-3" placeholder="Zone name">
+        <div class="sg-check-row">
+          <input type="checkbox" id="edit-zone-restricted">
+          <label class="sg-check-label" for="edit-zone-restricted">
+            Restricted <span class="check-sub">(alerts on entry)</span>
+          </label>
         </div>
       </div>
       <div class="modal-footer py-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-sm btn-primary" onclick="saveEditZone()">Save</button>
+        <button type="button" class="sg-btn-cancel" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="sg-btn-finish" onclick="saveEditZone()">Save</button>
       </div>
     </div>
   </div>
@@ -179,6 +662,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// ── THEME ──────────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('theme-toggle').textContent = theme === 'dark' ? '🌙' : '☀️';
+}
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('sg-theme', next);
+  applyTheme(next);
+}
+(function() {
+  const saved = localStorage.getItem('sg-theme');
+  if (saved) applyTheme(saved);
+})();
+
 // ── TAB SWITCHING ──────────────────────────────────────────────────────────
 document.querySelectorAll('[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -197,22 +695,24 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
 function loadAlerts() {
   fetch('/api/alerts').then(r => r.json()).then(alerts => {
     document.getElementById('alert-count').textContent = alerts.length;
-    const tbody = document.getElementById('alerts-body');
+    const container = document.getElementById('alerts-body');
     if (!alerts.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No alerts yet</td></tr>';
+      container.innerHTML = '<div class="sg-empty-state"><div class="sg-empty-icon">&#128680;</div><p>No alerts yet</p></div>';
       return;
     }
-    const levelBadge = l => ({critical:'danger', warning:'warning', info:'info'}[l] || 'secondary');
-    tbody.innerHTML = alerts.map(a => {
+    const levelClass = l => ({critical:'critical', warning:'warning', info:'info'}[l] || 'secondary');
+    container.innerHTML = alerts.map(a => {
       const t = new Date(a.timestamp * 1000).toLocaleTimeString();
-      return `<tr>
-        <td class="text-nowrap">${t}</td>
-        <td><span class="badge badge-${a.level} bg-${levelBadge(a.level)}">${a.level.toUpperCase()}</span></td>
-        <td>${a.alert_type}</td>
-        <td>${a.message}</td>
-        <td>${a.zone_name || '<span class="text-muted">—</span>'}</td>
-        <td>${a.person_id !== null && a.person_id !== undefined ? a.person_id : '<span class="text-muted">—</span>'}</td>
-      </tr>`;
+      const lc = levelClass(a.level);
+      const zone   = a.zone_name ? `<span class="sg-chip">${a.zone_name}</span>` : `<span style="color:var(--text-muted)">—</span>`;
+      const person = (a.person_id !== null && a.person_id !== undefined) ? `<span class="sg-chip">${a.person_id}</span>` : `<span style="color:var(--text-muted)">—</span>`;
+      return `<div class="sg-alert-row level-${a.level}">
+        <span class="sg-alert-time">${t}</span>
+        <span class="sg-level-badge ${lc}">${a.level.toUpperCase()}</span>
+        <span class="sg-alert-type">${a.alert_type}</span>
+        <span class="sg-alert-msg">${a.message}</span>
+        ${zone}${person}
+      </div>`;
     }).join('');
   }).catch(() => {});
 }
@@ -225,7 +725,7 @@ function loadClips() {
   fetch('/api/clips').then(r => r.json()).then(clips => {
     const el = document.getElementById('clips-list');
     if (!clips.length) {
-      el.innerHTML = '<p class="text-muted small">No clips saved yet.</p>';
+      el.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted)">No clips saved yet.</p>';
       return;
     }
     el.innerHTML = clips.map(c => {
@@ -235,8 +735,8 @@ function loadClips() {
       const type = parts.slice(2).join('_') || '';
       const label = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)} ${timeStr.slice(0,2)}:${timeStr.slice(2,4)}:${timeStr.slice(4,6)}`;
       return `<div class="clip-item" id="clip-${c.stem}" onclick="playClip('${c.name}','${c.stem}',${c.has_snapshot})">
-        <div class="small fw-bold text-truncate">${label}</div>
-        <div class="text-muted" style="font-size:0.75rem">${type}</div>
+        <div class="clip-title text-truncate">${label}</div>
+        <div class="clip-type">${type}</div>
       </div>`;
     }).join('');
   }).catch(() => {});
@@ -355,7 +855,7 @@ function redraw() {
 function setStatus(msg, isError) {
   const el = document.getElementById('zone-status');
   el.textContent = msg;
-  el.className = 'small mt-2 mb-0 ' + (isError ? 'text-danger' : 'text-muted');
+  el.className = 'mb-0 ' + (isError ? 'text-danger' : '');
 }
 
 function updateZonesList() {
@@ -378,13 +878,13 @@ function updateZonesList() {
     return `<div class="zone-item" style="border-left-color:${hex};">
       <div class="d-flex align-items-center gap-2" style="min-width:0;">
         <span style="display:inline-block;flex-shrink:0;width:10px;height:10px;background:${hex};border-radius:50%;"></span>
-        <span class="small fw-semibold text-truncate" style="color:#e0e0e0;">${z.name}</span>
-        ${z.restricted ? '<span class="badge bg-danger ms-1" style="font-size:0.65rem;">RESTRICTED</span>' : ''}
-        <span class="text-muted ms-1" style="font-size:0.7rem;">${occupancy}</span>
+        <span class="zone-name text-truncate">${z.name}</span>
+        ${z.restricted ? '<span class="zone-badge restricted ms-1">RESTRICTED</span>' : ''}
+        <span class="zone-occ ms-1">${occupancy}</span>
       </div>
-      <div class="d-flex gap-1 ms-2" style="flex-shrink:0;">
-        <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="editZone(${i})" style="font-size:0.7rem" title="Edit">&#9998;</button>
-        <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteZone(${i})" style="font-size:0.7rem" title="Delete">&#10005;</button>
+      <div class="zone-btns d-flex gap-1 ms-2" style="flex-shrink:0;">
+        <button onclick="editZone(${i})" title="Edit">&#9998;</button>
+        <button class="del" onclick="deleteZone(${i})" title="Delete">&#10005;</button>
       </div>
     </div>`;
   }).join('');

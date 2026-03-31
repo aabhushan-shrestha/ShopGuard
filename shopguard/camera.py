@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from typing import Generator, TYPE_CHECKING
 
@@ -21,6 +22,7 @@ class Camera:
     def __init__(self, cfg: AttrDict) -> None:
         self._cfg = cfg.camera
         self._cap: cv2.VideoCapture | None = None
+        self._lock = threading.Lock()
 
     # -- context manager --------------------------------------------------
 
@@ -36,20 +38,24 @@ class Camera:
     def open(self) -> None:
         """Open the video source and apply resolution settings."""
         src = self._cfg["source"]
-        self._cap = cv2.VideoCapture(src)
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
+        new_cap = cv2.VideoCapture(src)
+        new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
+        new_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
 
-        if not self._cap.isOpened():
+        if not new_cap.isOpened():
             raise RuntimeError(f"Cannot open camera source {src}")
+        with self._lock:
+            self._cap = new_cap
         logger.info("Camera opened (source=%s, %dx%d)",
                      src, self._cfg["width"], self._cfg["height"])
 
     def release(self) -> None:
         """Release the underlying VideoCapture."""
-        if self._cap is not None:
-            self._cap.release()
+        with self._lock:
+            cap = self._cap
             self._cap = None
+        if cap is not None:
+            cap.release()
             logger.info("Camera released")
 
     def read(self) -> np.ndarray:
@@ -58,14 +64,17 @@ class Camera:
         Returns the decoded frame (BGR numpy array).
         Raises ``RuntimeError`` if reconnection is exhausted.
         """
-        if self._cap is not None:
-            ret, frame = self._cap.read()
+        with self._lock:
+            cap = self._cap
+        if cap is not None:
+            ret, frame = cap.read()
             if ret:
                 return frame
             logger.warning("Frame read failed, attempting reconnect")
-
         self._reconnect()
-        ret, frame = self._cap.read()  # type: ignore[union-attr]
+        with self._lock:
+            cap = self._cap
+        ret, frame = cap.read()
         if not ret:
             raise RuntimeError("Frame read failed after reconnect")
         return frame
@@ -76,17 +85,20 @@ class Camera:
             yield self.read()
 
     def switch_source(self, source: int) -> None:
-        """Release the current capture and reopen with *source*."""
-        logger.info("Camera: switching to source %d", source)
-        self.release()
-        self._cap = cv2.VideoCapture(source)
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
-        if not self._cap.isOpened():
-            self._cap = None
-            raise RuntimeError(f"Cannot open camera source {source}")
-        logger.info("Camera switched to source %d (%dx%d)",
-                    source, self._cfg["width"], self._cfg["height"])
+        """Switch to a different camera source at runtime (thread-safe)."""
+        with self._lock:
+            if self._cap is not None:
+                self._cap.release()
+                self._cap = None
+            new_cap = cv2.VideoCapture(source)
+            new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
+            new_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
+            if not new_cap.isOpened():
+                raise RuntimeError(f"Cannot open camera source {source}")
+            self._cap = new_cap
+            self._cfg = dict(self._cfg)   # make mutable copy
+            self._cfg["source"] = source
+            logger.info("Camera switched to source %s", source)
 
     # -- internals --------------------------------------------------------
 

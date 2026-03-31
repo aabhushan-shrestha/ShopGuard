@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
@@ -17,8 +18,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-def get_zones_path(source: int) -> Path:
-    return Path(f"config/zones_camera_{source}.json")
+def get_zones_path(source: int | str) -> Path:
+    if isinstance(source, int):
+        return Path(f"config/zones_camera_{source}.json")
+    # RTSP URL → deterministic short hash for safe filename
+    tag = hashlib.sha256(source.encode()).hexdigest()[:12]
+    return Path(f"config/zones_camera_rtsp_{tag}.json")
 
 # Keep JSON_PATH as an alias for backwards compatibility
 JSON_PATH = get_zones_path(0)

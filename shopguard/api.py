@@ -38,7 +38,7 @@ class DashboardState:
         self._frame: np.ndarray | None = None
         self._alerts: collections.deque[dict[str, Any]] = collections.deque(maxlen=max_alerts)
         self._camera: Camera | None = None
-        self._current_source: int = 0
+        self._current_source: int | str = 0
 
     def update_frame(self, frame: np.ndarray) -> None:
         with self._lock:
@@ -72,11 +72,11 @@ class DashboardState:
         with self._lock:
             return self._camera
 
-    def get_source(self) -> int:
+    def get_source(self) -> int | str:
         with self._lock:
             return self._current_source
 
-    def set_source(self, source: int) -> None:
+    def set_source(self, source: int | str) -> None:
         with self._lock:
             self._current_source = source
 
@@ -84,6 +84,24 @@ class DashboardState:
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
+
+CAMERAS_JSON = Path("config/cameras.json")
+
+
+def _load_rtsp_cameras() -> list[dict[str, str]]:
+    """Load persisted RTSP cameras from config/cameras.json."""
+    if CAMERAS_JSON.exists():
+        data = json.loads(CAMERAS_JSON.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return data
+    return []
+
+
+def _save_rtsp_cameras(cameras: list[dict[str, str]]) -> None:
+    """Persist RTSP cameras list to config/cameras.json."""
+    CAMERAS_JSON.parent.mkdir(parents=True, exist_ok=True)
+    CAMERAS_JSON.write_text(json.dumps(cameras, indent=2), encoding="utf-8")
+
 
 def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -> Flask:
     """Build and return the Flask application."""
@@ -224,12 +242,16 @@ def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -
     @_require_auth
     def api_cameras() -> Response:
         _labels = {0: "iVCam / Default", 1: "Built-in Webcam"}
-        found = []
+        found: list[dict[str, Any]] = []
+        # USB cameras
         for i in range(5):
             cap = cv2.VideoCapture(i)
             if cap.isOpened():
-                found.append({"index": i, "label": _labels.get(i, f"Camera {i}")})
+                found.append({"index": i, "label": _labels.get(i, f"Camera {i}"), "type": "usb"})
             cap.release()
+        # RTSP cameras from config/cameras.json
+        for cam in _load_rtsp_cameras():
+            found.append({"index": cam["url"], "label": cam["name"], "type": "rtsp"})
         return jsonify(found)
 
     @app.route("/api/camera/switch", methods=["POST"])
@@ -237,8 +259,11 @@ def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -
     def api_camera_switch() -> Response:
         body = request.get_json(force=True)
         source = body.get("source")
-        if not isinstance(source, int):
+        if not isinstance(source, (int, str)):
             abort(400)
+        # Coerce numeric strings to int for USB cameras
+        if isinstance(source, str) and source.isdigit():
+            source = int(source)
         cam = state.camera
         if cam is None:
             return jsonify({"ok": False, "error": "Camera not initialised"}), 500
@@ -255,6 +280,36 @@ def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -
     @_require_auth
     def api_camera_current() -> Response:
         return jsonify({"source": state.get_source()})
+
+    @app.route("/api/cameras/rtsp", methods=["POST"])
+    @_require_auth
+    def api_rtsp_add() -> Response:
+        body = request.get_json(force=True)
+        name = body.get("name", "").strip()
+        url = body.get("url", "").strip()
+        if not name or not url:
+            return jsonify({"ok": False, "error": "name and url are required"}), 400
+        cameras = _load_rtsp_cameras()
+        # Prevent duplicate URLs
+        if any(c["url"] == url for c in cameras):
+            return jsonify({"ok": False, "error": "Camera URL already exists"}), 409
+        cameras.append({"name": name, "url": url})
+        _save_rtsp_cameras(cameras)
+        logger.info("RTSP camera added: %s (%s)", name, url)
+        return jsonify({"ok": True, "cameras": cameras})
+
+    @app.route("/api/cameras/rtsp", methods=["DELETE"])
+    @_require_auth
+    def api_rtsp_remove() -> Response:
+        body = request.get_json(force=True)
+        url = body.get("url", "").strip()
+        if not url:
+            return jsonify({"ok": False, "error": "url is required"}), 400
+        cameras = _load_rtsp_cameras()
+        cameras = [c for c in cameras if c["url"] != url]
+        _save_rtsp_cameras(cameras)
+        logger.info("RTSP camera removed: %s", url)
+        return jsonify({"ok": True, "cameras": cameras})
 
     return app
 

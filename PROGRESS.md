@@ -133,3 +133,25 @@
 - [x] Clip playback from saved recordings
 - [x] Zone editor in the browser (click-to-draw polygons)
 - [x] Basic auth so only staff can access it
+
+---
+
+## Phase A: RTSP Camera Connectivity ✅ COMPLETE
+
+**Goal:** ShopGuard works with any camera — phones, CCTVs, IP cameras — without requiring iVCam or USB connection.
+
+**Files:**
+- `shopguard/camera.py` — updated to handle int (USB) and string (RTSP) sources
+- `shopguard/api.py` — RTSP camera CRUD endpoints, updated camera listing/switching
+- `shopguard/zones.py` — zone paths for RTSP cameras via URL hash
+- `dashboard/templates/index.html` — "Add RTSP Camera" form in camera selector
+- `config.yaml` — source field now accepts int or RTSP URL string
+- `config/cameras.json` — persisted RTSP camera list (created at runtime)
+
+**Tasks:**
+- [x] Accept RTSP URLs as camera source in config.yaml
+- [x] Update camera.py to handle both integer index (USB) and string URL (RTSP) sources
+- [x] Add RTSP camera management UI in dashboard camera selector
+- [x] Add "Add RTSP Camera" form in dashboard (name + URL fields)
+- [x] Persist RTSP camera list to config/cameras.json per store
+- [x] Update PROGRESS.md

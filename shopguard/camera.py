@@ -39,8 +39,10 @@ class Camera:
         """Open the video source and apply resolution settings."""
         src = self._cfg["source"]
         new_cap = cv2.VideoCapture(src)
-        new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
-        new_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
+        # Only set resolution for USB cameras; RTSP streams define their own
+        if isinstance(src, int):
+            new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
+            new_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
 
         if not new_cap.isOpened():
             raise RuntimeError(f"Cannot open camera source {src}")
@@ -84,15 +86,19 @@ class Camera:
         while True:
             yield self.read()
 
-    def switch_source(self, source: int) -> None:
-        """Switch to a different camera source at runtime (thread-safe)."""
+    def switch_source(self, source: int | str) -> None:
+        """Switch to a different camera source at runtime (thread-safe).
+
+        ``source`` can be an integer index (USB) or a string URL (RTSP).
+        """
         with self._lock:
             if self._cap is not None:
                 self._cap.release()
                 self._cap = None
             new_cap = cv2.VideoCapture(source)
-            new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
-            new_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
+            if isinstance(source, int):
+                new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._cfg["width"])
+                new_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cfg["height"])
             if not new_cap.isOpened():
                 raise RuntimeError(f"Cannot open camera source {source}")
             self._cap = new_cap

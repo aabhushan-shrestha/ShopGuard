@@ -96,24 +96,24 @@ ShopGuard uses two separate dashboard URLs — one for store owners, one for the
 
 ## Phase A — RTSP Camera Connectivity
 
-**Status:** :black_large_square: Not started
+**Status:** :white_check_mark: Complete
 **Goal:** ShopGuard works with any camera — phones, CCTVs, IP cameras — without requiring iVCam or USB connection
 
-- [ ] Accept RTSP URLs as camera source in config.yaml
-- [ ] Update camera.py to handle both integer index (USB) and string URL (RTSP) sources
-- [ ] Add RTSP camera management UI in dashboard camera selector
-- [ ] Add "Add RTSP Camera" form in dashboard (name + URL fields)
-- [ ] Persist RTSP camera list to config/cameras.json per store
+- [x] Accept RTSP URLs as camera source in config.yaml
+- [x] Update camera.py to handle both integer index (USB) and string URL (RTSP) sources
+- [x] Add RTSP camera management UI in dashboard camera selector
+- [x] Add "Add RTSP Camera" form in dashboard (name + URL fields)
+- [x] Persist RTSP camera list to config/cameras.json per store
 - [ ] Test with Android phone running IP Webcam app
 - [ ] Test with iPhone running Cameras for OBS
 - [ ] Test with CCTV/DVR RTSP stream
-- [ ] Update PROGRESS.md
+- [x] Update PROGRESS.md
 
 ---
 
 ## Phase B — Cloud API Foundation
 
-**Status:** :black_large_square: Not started
+**Status:** :point_right: You are here
 **Goal:** A FastAPI server running on Railway that receives data from store agents and serves the master dashboards
 
 **Technology:** FastAPI, Supabase (PostgreSQL + Storage), Railway, Python

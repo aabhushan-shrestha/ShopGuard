@@ -1,5 +1,5 @@
 camera:
-  source: 0
+  source: 0                    # integer index (USB) or RTSP URL string
   width: 1280
   height: 720
   fps_cap: 30

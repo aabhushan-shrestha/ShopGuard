@@ -544,7 +544,16 @@
             <option>Loading...</option>
           </select>
           <button class="sg-btn-connect" onclick="switchCamera()">Connect</button>
+          <button class="sg-btn-connect" style="background:var(--text-muted);" onclick="toggleRtspForm()">+ RTSP</button>
           <span id="camera-status"></span>
+        </div>
+        <div id="rtsp-form" style="display:none;margin-top:8px;">
+          <div class="sg-camera-bar" style="flex-wrap:wrap;">
+            <input id="rtsp-name" type="text" placeholder="Camera name" style="background:var(--bg-base);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);padding:4px 8px;font-size:0.82rem;">
+            <input id="rtsp-url" type="text" placeholder="rtsp://192.168.1.x:8080/..." style="background:var(--bg-base);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);padding:4px 8px;font-size:0.82rem;min-width:260px;">
+            <button class="sg-btn-connect" onclick="addRtspCamera()">Add</button>
+            <button class="sg-btn-connect" style="background:#dc3545;" id="rtsp-remove-btn" onclick="removeRtspCamera()" disabled>Remove Selected</button>
+          </div>
         </div>
       </div>
     </div>
@@ -992,7 +1001,11 @@ let zonesModified = false;
 
 function updateCameraChip() {
   const chip = document.getElementById('zone-camera-chip');
-  if (chip) chip.textContent = '\uD83D\uDCF7 Camera ' + activeCameraIndex + ' zones';
+  if (!chip) return;
+  const label = typeof activeCameraIndex === 'number'
+    ? 'Camera ' + activeCameraIndex
+    : activeCameraIndex.replace(/^rtsp:\/\//, '').split('/')[0];
+  chip.textContent = '\uD83D\uDCF7 ' + label + ' zones';
 }
 
 function loadCameras() {
@@ -1002,18 +1015,30 @@ function loadCameras() {
       sel.innerHTML = '<option>No cameras found</option>';
       return;
     }
-    sel.innerHTML = cameras.map(c =>
-      `<option value="${c.index}"${c.index === activeCameraIndex ? ' selected' : ''}>${c.label}</option>`
-    ).join('');
+    sel.innerHTML = cameras.map(c => {
+      const val = typeof c.index === 'string' ? c.index : c.index;
+      const tag = c.type === 'rtsp' ? ' [RTSP]' : '';
+      const selected = String(c.index) === String(activeCameraIndex) ? ' selected' : '';
+      return `<option value="${val}" data-type="${c.type}"${selected}>${c.label}${tag}</option>`;
+    }).join('');
+    updateRemoveBtn();
   }).catch(() => {
     document.getElementById('camera-select').innerHTML = '<option>Error loading cameras</option>';
   });
 }
 
+function updateRemoveBtn() {
+  const sel = document.getElementById('camera-select');
+  const opt = sel.options[sel.selectedIndex];
+  const btn = document.getElementById('rtsp-remove-btn');
+  if (btn) btn.disabled = !(opt && opt.dataset.type === 'rtsp');
+}
+
 async function switchCamera() {
   const sel = document.getElementById('camera-select');
-  const source = parseInt(sel.value, 10);
-  const label = sel.options[sel.selectedIndex].text;
+  const raw = sel.value;
+  // int for USB, string for RTSP
+  const source = /^\d+$/.test(raw) ? parseInt(raw, 10) : raw;
   const statusEl = document.getElementById('camera-status');
 
   if (zonesModified) {
@@ -1033,12 +1058,14 @@ async function switchCamera() {
     body: JSON.stringify({ source }),
   }).then(r => r.json()).then(res => {
     if (res.ok) {
-      activeCameraIndex = source;
+      activeCameraIndex = res.source;
       zonesModified = false;
       updateCameraChip();
+      updateRemoveBtn();
       loadZoneEditor();
       statusEl.style.color = '';
-      statusEl.textContent = 'Switched \u2014 zones loaded for camera ' + source;
+      const label = sel.options[sel.selectedIndex].text;
+      statusEl.textContent = 'Switched to ' + label;
     } else {
       statusEl.style.color = '#dc3545';
       statusEl.textContent = 'Failed: ' + (res.error || 'unknown error');
@@ -1048,6 +1075,47 @@ async function switchCamera() {
     statusEl.textContent = 'Failed: network error';
   });
 }
+
+function toggleRtspForm() {
+  const form = document.getElementById('rtsp-form');
+  form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+
+function addRtspCamera() {
+  const name = document.getElementById('rtsp-name').value.trim();
+  const url = document.getElementById('rtsp-url').value.trim();
+  if (!name || !url) { alert('Name and URL are required'); return; }
+  fetch('/api/cameras/rtsp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, url }),
+  }).then(r => r.json()).then(res => {
+    if (res.ok) {
+      document.getElementById('rtsp-name').value = '';
+      document.getElementById('rtsp-url').value = '';
+      loadCameras();
+    } else {
+      alert(res.error || 'Failed to add camera');
+    }
+  }).catch(() => alert('Network error'));
+}
+
+function removeRtspCamera() {
+  const sel = document.getElementById('camera-select');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || opt.dataset.type !== 'rtsp') return;
+  if (!confirm('Remove RTSP camera "' + opt.text.replace(' [RTSP]', '') + '"?')) return;
+  fetch('/api/cameras/rtsp', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: sel.value }),
+  }).then(r => r.json()).then(res => {
+    if (res.ok) loadCameras();
+    else alert(res.error || 'Failed to remove camera');
+  }).catch(() => alert('Network error'));
+}
+
+document.getElementById('camera-select').addEventListener('change', updateRemoveBtn);
 
 fetch('/api/camera/current').then(r => r.json()).then(res => {
   activeCameraIndex = res.source;

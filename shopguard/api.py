@@ -16,7 +16,7 @@ import cv2
 import numpy as np
 from flask import Flask, Response, abort, jsonify, render_template, request, send_file
 
-from shopguard.zones import JSON_PATH as ZONES_JSON_PATH
+from shopguard.zones import get_zones_path
 
 if TYPE_CHECKING:
     from shopguard.alerts import Alert
@@ -38,6 +38,7 @@ class DashboardState:
         self._frame: np.ndarray | None = None
         self._alerts: collections.deque[dict[str, Any]] = collections.deque(maxlen=max_alerts)
         self._camera: Camera | None = None
+        self._current_source: int = 0
 
     def update_frame(self, frame: np.ndarray) -> None:
         with self._lock:
@@ -70,6 +71,14 @@ class DashboardState:
     def camera(self) -> Camera | None:
         with self._lock:
             return self._camera
+
+    def get_source(self) -> int:
+        with self._lock:
+            return self._current_source
+
+    def set_source(self, source: int) -> None:
+        with self._lock:
+            self._current_source = source
 
 
 # ---------------------------------------------------------------------------
@@ -189,8 +198,9 @@ def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -
     @app.route("/api/zones", methods=["GET"])
     @_require_auth
     def api_zones_get() -> Response:
-        if ZONES_JSON_PATH.exists():
-            data = json.loads(ZONES_JSON_PATH.read_text(encoding="utf-8"))
+        path = get_zones_path(state.get_source())
+        if path.exists():
+            data = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(data, list):
                 return jsonify(data)
             return jsonify(data.get("zones", []))
@@ -202,12 +212,13 @@ def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -
         data = request.get_json(force=True)
         if not isinstance(data, list):
             abort(400)
-        ZONES_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-        ZONES_JSON_PATH.write_text(json.dumps({"zones": data}, indent=2), encoding="utf-8")
-        logger.info("Dashboard: zones updated (%d zones)", len(data))
+        path = get_zones_path(state.get_source())
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"zones": data}, indent=2), encoding="utf-8")
+        logger.info("Dashboard: zones updated for camera %d (%d zones)", state.get_source(), len(data))
         if zone_manager is not None:
-            zone_manager.reload()
-        return jsonify({"saved": len(data)})
+            zone_manager.reload(path)
+        return jsonify({"saved": len(data), "camera": state.get_source()})
 
     @app.route("/api/cameras", methods=["GET"])
     @_require_auth
@@ -233,9 +244,17 @@ def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -
             return jsonify({"ok": False, "error": "Camera not initialised"}), 500
         try:
             cam.switch_source(source)
+            state.set_source(source)
+            if zone_manager is not None:
+                zone_manager.reload(get_zones_path(source))
             return jsonify({"ok": True, "source": source})
         except RuntimeError as exc:
             return jsonify({"ok": False, "error": str(exc)}), 500
+
+    @app.route("/api/camera/current", methods=["GET"])
+    @_require_auth
+    def api_camera_current() -> Response:
+        return jsonify({"source": state.get_source()})
 
     return app
 

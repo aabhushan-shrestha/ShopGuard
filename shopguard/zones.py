@@ -17,7 +17,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-JSON_PATH = Path("config/zones.json")
+def get_zones_path(source: int) -> Path:
+    return Path(f"config/zones_camera_{source}.json")
+
+# Keep JSON_PATH as an alias for backwards compatibility
+JSON_PATH = get_zones_path(0)
 
 _COLOR_NORMAL: tuple[int, int, int] = (0, 200, 0)     # green
 _COLOR_RESTRICTED: tuple[int, int, int] = (32, 32, 255)  # red
@@ -76,7 +80,7 @@ class ZoneManager:
     """Loads zones from config/zones.json (or YAML config) and checks detection occupancy."""
 
     def __init__(self, cfg: AttrDict) -> None:
-        json_path = Path(cfg.get("zones_json", str(JSON_PATH)))
+        json_path = Path(cfg.get("zones_json", str(get_zones_path(0))))
         if json_path.exists():
             with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -93,13 +97,20 @@ class ZoneManager:
     def zones(self) -> list[Zone]:
         return self._zones
 
-    def reload(self) -> None:
-        """Re-read zones from JSON_PATH if it exists."""
-        if JSON_PATH.exists():
-            with open(JSON_PATH, "r", encoding="utf-8") as f:
+    def reload(self, path: Path | None = None) -> None:
+        """Re-read zones from *path* (or camera 0's path) if it exists."""
+        target = path or get_zones_path(0)
+        if target.exists():
+            with open(target, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            self._zones = _zones_from_list(data.get("zones", []))
-            logger.info("ZoneManager: reloaded %d zone(s)", len(self._zones))
+            if isinstance(data, list):
+                self._zones = _zones_from_list(data)
+            else:
+                self._zones = _zones_from_list(data.get("zones", []))
+            logger.info("ZoneManager: reloaded %d zone(s) from %s", len(self._zones), target)
+        else:
+            self._zones = []
+            logger.info("ZoneManager: no zones file at %s, cleared zones", target)
 
     def save_to_json(self, path: Path | str = JSON_PATH) -> None:
         """Persist current zones to *path* as JSON."""

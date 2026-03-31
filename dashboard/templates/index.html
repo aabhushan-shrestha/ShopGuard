@@ -625,6 +625,7 @@
             </div>
             <button class="sg-btn-save-all" onclick="saveZones()">&#128190; Save All</button>
           </div>
+          <div id="zone-camera-chip" style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">&#128247; Camera 0 zones</div>
           <div id="zones-list"></div>
         </div>
       </div>
@@ -922,6 +923,7 @@ function finishZone() {
   const name = document.getElementById('zone-name').value.trim() || ('Zone ' + (zones.length + 1));
   const restricted = document.getElementById('zone-restricted').checked;
   zones.push({ name, points: [...currentPts], restricted, max_occupancy: restricted ? 1 : 5 });
+  zonesModified = true;
   cancelZone();
   saveZones();
 }
@@ -936,6 +938,7 @@ function cancelZone() {
 function deleteZone(i) {
   if (!confirm(`Delete zone "${zones[i].name}"?`)) return;
   zones.splice(i, 1);
+  zonesModified = true;
   redraw();
   saveZones();
 }
@@ -959,6 +962,7 @@ function saveEditZone() {
   if (!name) { document.getElementById('edit-zone-name').focus(); return; }
   zones[i].name = name;
   zones[i].restricted = document.getElementById('edit-zone-restricted').checked;
+  zonesModified = true;
   _editModal.hide();
   redraw();
   saveZones();
@@ -970,11 +974,12 @@ document.getElementById('edit-zone-name').addEventListener('keydown', e => {
 });
 
 function saveZones() {
-  fetch('/api/zones', {
+  return fetch('/api/zones', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(zones),
   }).then(r => r.json()).then(res => {
+    zonesModified = false;
     setStatus('Saved ' + res.saved + ' zone' + (res.saved !== 1 ? 's' : '') + ' successfully.');
     updateZonesList();
     refreshFrame();
@@ -983,6 +988,12 @@ function saveZones() {
 
 // ── CAMERA SELECTOR ────────────────────────────────────────────────────────
 let activeCameraIndex = 0;
+let zonesModified = false;
+
+function updateCameraChip() {
+  const chip = document.getElementById('zone-camera-chip');
+  if (chip) chip.textContent = '\uD83D\uDCF7 Camera ' + activeCameraIndex + ' zones';
+}
 
 function loadCameras() {
   fetch('/api/cameras').then(r => r.json()).then(cameras => {
@@ -999,11 +1010,21 @@ function loadCameras() {
   });
 }
 
-function switchCamera() {
+async function switchCamera() {
   const sel = document.getElementById('camera-select');
   const source = parseInt(sel.value, 10);
   const label = sel.options[sel.selectedIndex].text;
   const statusEl = document.getElementById('camera-status');
+
+  if (zonesModified) {
+    const save = confirm(
+      'You have unsaved zone changes for the current camera.\nSave them before switching?'
+    );
+    if (save) {
+      await saveZones();
+    }
+  }
+
   statusEl.style.color = '';
   statusEl.textContent = 'Switching\u2026';
   fetch('/api/camera/switch', {
@@ -1013,8 +1034,11 @@ function switchCamera() {
   }).then(r => r.json()).then(res => {
     if (res.ok) {
       activeCameraIndex = source;
+      zonesModified = false;
+      updateCameraChip();
+      loadZoneEditor();
       statusEl.style.color = '';
-      statusEl.textContent = 'Switched to ' + label;
+      statusEl.textContent = 'Switched \u2014 zones loaded for camera ' + source;
     } else {
       statusEl.style.color = '#dc3545';
       statusEl.textContent = 'Failed: ' + (res.error || 'unknown error');
@@ -1025,7 +1049,11 @@ function switchCamera() {
   });
 }
 
-loadCameras();
+fetch('/api/camera/current').then(r => r.json()).then(res => {
+  activeCameraIndex = res.source;
+  updateCameraChip();
+  loadCameras();
+}).catch(() => loadCameras());
 </script>
 </body>
 </html>

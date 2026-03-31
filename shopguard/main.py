@@ -72,6 +72,7 @@ def main(argv: list[str] | None = None) -> None:
     try:
         with Camera(cfg) as cam:
             dashboard_state.set_camera(cam)
+            dashboard_state.set_source(cfg.camera.get("source", 0))
             for frame in cam.frames():
                 if not _running:
                     break

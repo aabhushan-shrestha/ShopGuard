@@ -155,3 +155,37 @@
 - [x] Add "Add RTSP Camera" form in dashboard (name + URL fields)
 - [x] Persist RTSP camera list to config/cameras.json per store
 - [x] Update PROGRESS.md
+
+---
+
+## Phase B: Cloud API Foundation ✅ COMPLETE
+
+**Goal:** FastAPI server on Railway that receives data from store agents and serves the dashboards.
+
+**Files:**
+- `cloud-api/main.py` — FastAPI app, CORS, router registration
+- `cloud-api/auth.py` — API key auth (agents), JWT auth (dashboard users)
+- `cloud-api/database.py` — Supabase client singleton
+- `cloud-api/models.py` — Pydantic request/response models
+- `cloud-api/routers/agent.py` — POST /agent/register|heartbeat|alert|clip
+- `cloud-api/routers/admin.py` — GET /admin/stores|alerts|clips|heartbeats
+- `cloud-api/routers/client.py` — GET /client/alerts|clips|zones, PUT /client/zones
+- `cloud-api/routers/auth_router.py` — POST /auth/login
+- `cloud-api/db/schema.sql` — full Supabase PostgreSQL schema
+- `cloud-api/requirements.txt` — FastAPI, supabase, python-jose, passlib
+- `cloud-api/railway.toml` — Railway deployment config
+- `cloud-api/.env.example` — env var template
+
+**Tasks:**
+- [x] Initialize FastAPI project in cloud-api/
+- [x] Set up Supabase schema (db/schema.sql)
+- [x] Implement store registration endpoint: POST /agent/register
+- [x] Implement heartbeat endpoint: POST /agent/heartbeat
+- [x] Implement alert forwarding endpoint: POST /agent/alert
+- [x] Implement clip upload endpoint: POST /agent/clip
+- [x] Implement admin endpoints: GET /admin/stores, GET /admin/alerts, GET /admin/clips
+- [x] Implement client endpoints: GET /client/alerts, GET /client/clips, GET /client/zones
+- [x] API key auth for agents, JWT auth for dashboard users
+- [x] Environment variables documented in .env.example
+- [ ] Deploy to Railway (requires Railway account + Supabase project setup)
+- [x] Update PROGRESS.md

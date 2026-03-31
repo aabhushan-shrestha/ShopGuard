@@ -113,25 +113,25 @@ ShopGuard uses two separate dashboard URLs — one for store owners, one for the
 
 ## Phase B — Cloud API Foundation
 
-**Status:** :point_right: You are here
+**Status:** :white_check_mark: Complete
 **Goal:** A FastAPI server running on Railway that receives data from store agents and serves the master dashboards
 
 **Technology:** FastAPI, Supabase (PostgreSQL + Storage), Railway, Python
 
 **New folder:** cloud-api/ in same repo
 
-- [ ] Initialize FastAPI project in cloud-api/
-- [ ] Set up Supabase schema (tables below)
-- [ ] Implement store registration endpoint: POST /agent/register
-- [ ] Implement heartbeat endpoint: POST /agent/heartbeat
-- [ ] Implement alert forwarding endpoint: POST /agent/alert
-- [ ] Implement clip upload endpoint: POST /agent/clip
-- [ ] Implement admin endpoints: GET /admin/stores, GET /admin/alerts, GET /admin/clips
-- [ ] Implement client endpoints: GET /client/alerts, GET /client/clips, GET /client/zones
-- [ ] API key auth for agents, JWT auth for dashboard users
-- [ ] Deploy to Railway
-- [ ] Environment variables: Supabase URL, Supabase key, JWT secret
-- [ ] Update PROGRESS.md
+- [x] Initialize FastAPI project in cloud-api/
+- [x] Set up Supabase schema (tables below)
+- [x] Implement store registration endpoint: POST /agent/register
+- [x] Implement heartbeat endpoint: POST /agent/heartbeat
+- [x] Implement alert forwarding endpoint: POST /agent/alert
+- [x] Implement clip upload endpoint: POST /agent/clip
+- [x] Implement admin endpoints: GET /admin/stores, GET /admin/alerts, GET /admin/clips
+- [x] Implement client endpoints: GET /client/alerts, GET /client/clips, GET /client/zones
+- [x] API key auth for agents, JWT auth for dashboard users
+- [ ] Deploy to Railway (requires Railway account + live Supabase project)
+- [x] Environment variables: Supabase URL, Supabase key, JWT secret (documented in .env.example)
+- [x] Update PROGRESS.md
 
 **Supabase Schema:**
 
@@ -159,7 +159,7 @@ heartbeats (store_id, camera_index, last_seen, agent_version)
 
 ## Phase C — Agent Sync Layer
 
-**Status:** :black_large_square: Not started
+**Status:** :point_right: You are here
 **Goal:** ShopGuard agent automatically syncs alerts, clips and heartbeats to the cloud in the background
 
 **New file:** shopguard/sync.py

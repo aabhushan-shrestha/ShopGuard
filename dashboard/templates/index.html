@@ -261,6 +261,10 @@ const ZONE_COLORS = ['#00e5ff','#ff1744','#00e676','#ffea00','#ff6d00','#d500f9'
 
 function loadZoneEditor() {
   refreshFrame();
+  fetch('/api/zones').then(r => r.json()).then(data => {
+    zones = data || [];
+    updateZonesList();
+  }).catch(() => {});
 }
 
 function refreshFrame() {
@@ -342,7 +346,7 @@ function setStatus(msg, isError) {
 function updateZonesList() {
   const el = document.getElementById('zones-list');
   if (!zones.length) {
-    el.innerHTML = '<p class="text-muted small">No zones defined.</p>';
+    el.innerHTML = '<p class="text-muted small">No zones defined.</p><p class="text-muted small" style="font-size:0.7rem">Zones from config.yaml are active but not shown here until saved via dashboard.</p>';
     return;
   }
   el.innerHTML = zones.map((z, i) => {
@@ -446,6 +450,7 @@ function saveZones() {
     body: JSON.stringify(zones),
   }).then(r => r.json()).then(res => {
     setStatus('Saved ' + res.saved + ' zone' + (res.saved !== 1 ? 's' : '') + ' successfully.');
+    updateZonesList();
     refreshFrame();
   }).catch(() => setStatus('Save failed — check the console.', true));
 }

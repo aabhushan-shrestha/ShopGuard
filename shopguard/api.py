@@ -191,6 +191,8 @@ def create_app(state: DashboardState, cfg: AttrDict, zone_manager: Any = None) -
     def api_zones_get() -> Response:
         if ZONES_JSON_PATH.exists():
             data = json.loads(ZONES_JSON_PATH.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                return jsonify(data)
             return jsonify(data.get("zones", []))
         return jsonify([])
 

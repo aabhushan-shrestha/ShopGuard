@@ -22,7 +22,13 @@
     #zone-canvas { cursor: crosshair; border: 2px solid #2d2d5e; border-radius: 4px;
                    display: block; max-width: 100%; }
     .zone-item { background: #1e1e40; border-radius: 4px; padding: 6px 10px;
-                 margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+                 margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;
+                 border-left: 3px solid transparent; }
+    .zone-empty-state { background: #1e1e40; border: 2px dashed #2d2d5e; border-radius: 8px;
+                        padding: 2rem 1rem; text-align: center; color: #9090b0; }
+    .zone-empty-state .zone-empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .point-counter { display: inline-block; background: #1e1e40; border: 1px solid #2d2d5e;
+                     border-radius: 4px; padding: 2px 10px; font-size: 0.78rem; color: #9090b0; margin-top: 6px; }
     .modal-dark .modal-content { background: #1a1a35; border: 1px solid #2d2d5e; color: #e0e0e0; }
     .modal-dark .modal-header { border-bottom-color: #2d2d5e; }
     .modal-dark .modal-footer { border-top-color: #2d2d5e; }
@@ -111,15 +117,19 @@
           Click to place points &nbsp;&#8226;&nbsp; Double-click to finish zone &nbsp;&#8226;&nbsp; Esc to cancel
         </p>
         <canvas id="zone-canvas"></canvas>
-        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="refreshFrame()">&#8635; Refresh Frame</button>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary mt-2 me-2" onclick="refreshFrame()">&#8635; Refresh Frame</button>
+          <span id="point-counter" class="point-counter">Points placed: 0</span>
+        </div>
       </div>
       <div class="col-md-4">
         <div class="card-dark mb-3">
-          <h6 class="mb-3">New Zone</h6>
-          <input id="zone-name" class="form-control form-control-sm bg-dark border-secondary text-light mb-2" placeholder="Zone name (e.g. exit)">
-          <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" id="zone-restricted">
-            <label class="form-check-label text-muted" for="zone-restricted">Restricted (alerts on entry)</label>
+          <h6 class="mb-3 fw-bold" style="color:#e0e0e0;">New Zone</h6>
+          <label class="form-label small fw-semibold" style="color:#c0c0d0;">Zone Name</label>
+          <input id="zone-name" class="form-control form-control-sm bg-dark border-secondary text-light mb-2" placeholder="e.g. exit, cashier">
+          <div class="form-check mb-2 d-flex align-items-center gap-2">
+            <input class="form-check-input" type="checkbox" id="zone-restricted" style="width:1.1em;height:1.1em;">
+            <label class="form-check-label fw-semibold" for="zone-restricted" style="color:#e0e0e0;">Restricted <span class="text-muted fw-normal">(alerts on entry)</span></label>
           </div>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-primary" onclick="finishZone()">&#10003; Finish Zone</button>
@@ -128,8 +138,10 @@
           <p id="zone-status" class="text-muted small mt-2 mb-0"></p>
         </div>
         <div class="card-dark">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="mb-0">Defined Zones</h6>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0 fw-bold" style="color:#e0e0e0;">
+              Defined Zones <span id="zone-count-badge" class="badge bg-primary ms-1">0</span>
+            </h6>
             <button class="btn btn-sm btn-success" onclick="saveZones()">&#128190; Save All</button>
           </div>
           <div id="zones-list"></div>
@@ -313,6 +325,9 @@ function redraw() {
   });
 
   // Draw in-progress polygon
+  const counter = document.getElementById('point-counter');
+  if (counter) counter.textContent = 'Points placed: ' + currentPts.length;
+
   if (currentPts.length > 0) {
     const pts = mousePos ? [...currentPts, mousePos] : currentPts;
     ctx.strokeStyle = '#ffffff';
@@ -345,16 +360,27 @@ function setStatus(msg, isError) {
 
 function updateZonesList() {
   const el = document.getElementById('zones-list');
+  const badge = document.getElementById('zone-count-badge');
+  if (badge) badge.textContent = zones.length;
   if (!zones.length) {
-    el.innerHTML = '<p class="text-muted small">No zones defined.</p><p class="text-muted small" style="font-size:0.7rem">Zones from config.yaml are active but not shown here until saved via dashboard.</p>';
+    el.innerHTML = `<div class="zone-empty-state">
+      <div class="zone-empty-icon">&#128506;</div>
+      <div class="fw-semibold mb-1">No zones defined yet.</div>
+      <div class="small">Click on the canvas to draw your first zone.</div>
+    </div>`;
     return;
   }
   el.innerHTML = zones.map((z, i) => {
     const hex = ZONE_COLORS[i % ZONE_COLORS.length];
-    return `<div class="zone-item">
+    const occupancy = z.restricted
+      ? (z.max_occupancy != null ? `max: ${z.max_occupancy}` : 'max: 1')
+      : (z.max_occupancy != null ? `max: ${z.max_occupancy}` : 'unlimited');
+    return `<div class="zone-item" style="border-left-color:${hex};">
       <div class="d-flex align-items-center gap-2" style="min-width:0;">
-        <span style="display:inline-block;flex-shrink:0;width:12px;height:12px;background:${hex};border-radius:2px;"></span>
-        <span class="small text-truncate">${z.restricted ? '&#128274; ' : ''}${z.name}</span>
+        <span style="display:inline-block;flex-shrink:0;width:10px;height:10px;background:${hex};border-radius:50%;"></span>
+        <span class="small fw-semibold text-truncate" style="color:#e0e0e0;">${z.name}</span>
+        ${z.restricted ? '<span class="badge bg-danger ms-1" style="font-size:0.65rem;">RESTRICTED</span>' : ''}
+        <span class="text-muted ms-1" style="font-size:0.7rem;">${occupancy}</span>
       </div>
       <div class="d-flex gap-1 ms-2" style="flex-shrink:0;">
         <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="editZone(${i})" style="font-size:0.7rem" title="Edit">&#9998;</button>

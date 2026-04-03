@@ -47,9 +47,14 @@ alerts:
       enabled: false      # set to true; provide token/chat_id here or via .env
       # token: ""         # or set TELEGRAM_BOT_TOKEN env var
       # chat_id: ""       # or set TELEGRAM_CHAT_ID env var
-    - type: "webhook"
-      url: "http://localhost:8000/alert"
-      enabled: false
+
+cloud:
+  enabled: false            # set to true once Supabase is configured
+  # url: ""                 # or set SUPABASE_URL env var
+  # anon_key: ""            # or set SUPABASE_KEY env var
+  store_id: "store_1"       # or set STORE_ID env var
+  heartbeat_interval: 60    # seconds between heartbeats
+  storage_bucket: "alert-frames"
 
 tracker:
   iou_threshold: 0.3

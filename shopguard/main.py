@@ -11,6 +11,7 @@ from shopguard.alerts import AlertManager
 from shopguard.api import DashboardState, start_dashboard
 from shopguard.behavior import BehaviorAnalyzer
 from shopguard.camera import Camera
+from shopguard.cloud import SupabaseCloud
 from shopguard.detector import Detector
 from shopguard.display import Display
 from shopguard.log import setup as setup_logging
@@ -56,6 +57,7 @@ def main(argv: list[str] | None = None) -> None:
     alert_manager = AlertManager(cfg)
     behavior_analyzer = BehaviorAnalyzer(cfg)
     recorder = ClipRecorder(cfg)
+    cloud = SupabaseCloud(cfg)
 
     dashboard_cfg = cfg.get("dashboard", {})
     dashboard_state = DashboardState(max_alerts=dashboard_cfg.get("max_alerts", 100))
@@ -73,6 +75,7 @@ def main(argv: list[str] | None = None) -> None:
         with Camera(cfg) as cam:
             dashboard_state.set_camera(cam)
             dashboard_state.set_source(cfg.camera.get("source", 0))
+            cloud.start()
             for frame in cam.frames():
                 if not _running:
                     break
@@ -91,6 +94,7 @@ def main(argv: list[str] | None = None) -> None:
                 for alert in fired_alerts:
                     recorder.trigger(alert)
                     dashboard_state.add_alert(alert)
+                    cloud.push_alert(alert, frame, cfg.camera.get("source", 0))
                 dashboard_state.update_frame(frame)
 
                 if not display.show(frame):
@@ -105,6 +109,7 @@ def main(argv: list[str] | None = None) -> None:
     except RuntimeError as exc:
         logger.error("Fatal: %s", exc)
     finally:
+        cloud.stop()
         display.cleanup()
         logger.info("ShopGuard stopped (processed %d frames)", frame_count)
 

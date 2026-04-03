@@ -8,6 +8,30 @@
 
 ---
 
+## Architecture (current)
+
+```
+Store PC                          Cloud (Supabase)          Dashboard (Vercel)
+─────────────────────────         ──────────────────────    ──────────────────
+shopguard/ local agent            alerts table              dashboard-web/
+  ├─ camera.py  (RTSP/USB)   ──►  heartbeats table     ◄──  Next.js app
+  ├─ detector.py (YOLOv8)        alert-frames bucket        reads Supabase
+  ├─ tracker.py                                              directly
+  ├─ zones.py                RTSP credentials stay local,
+  ├─ behavior.py             only metadata + JPEG leaves
+  ├─ alerts.py               the store PC
+  ├─ recorder.py (local MP4)
+  ├─ cloud.py ──────────────►  Supabase SDK (direct)
+  ├─ api.py  (local Flask dashboard, zone editor)
+  └─ main.py
+```
+
+**What stays local:** RTSP stream, YOLOv8 detection, zone monitoring, clip recording, Flask zone editor.  
+**What goes to Supabase:** alert metadata + JPEG frame (on alert), heartbeat every 60 s.  
+**Dashboard:** Next.js on Vercel reads Supabase directly — no backend server.
+
+---
+
 ## Phase 1: Basic Person Detection ✅ COMPLETE
 
 **Goal:** Get a live camera feed running with YOLOv8 detecting people in each frame.
@@ -119,9 +143,9 @@
 
 ---
 
-## Phase 7: Dashboard & Review UI ✅ COMPLETE
+## Phase 7: Local Dashboard ✅ COMPLETE
 
-**Goal:** A simple web interface to review alerts, watch clips, and manage zones.
+**Goal:** A local web interface on the store PC to review alerts, watch clips, and manage zones.
 
 **Files:**
 - `shopguard/api.py` — Flask app factory, DashboardState, all routes
@@ -158,34 +182,73 @@
 
 ---
 
-## Phase B: Cloud API Foundation ✅ COMPLETE
+## Phase B: Cloud API Foundation ~~SUPERSEDED~~
 
-**Goal:** FastAPI server on Railway that receives data from store agents and serves the dashboards.
+> **Superseded by Phase C.** The FastAPI/Railway server has been removed.
+> The local agent now talks directly to Supabase — no middleman.
+> The `cloud-api/` directory has been deleted from the repo.
+
+---
+
+## Phase C: Direct Supabase Integration ✅ COMPLETE
+
+**Goal:** Local agent pushes alert metadata and JPEG frames directly to Supabase.
+No FastAPI server, no Railway, no Render. Supabase is the only cloud dependency.
 
 **Files:**
-- `cloud-api/main.py` — FastAPI app, CORS, router registration
-- `cloud-api/auth.py` — API key auth (agents), JWT auth (dashboard users)
-- `cloud-api/database.py` — Supabase client singleton
-- `cloud-api/models.py` — Pydantic request/response models
-- `cloud-api/routers/agent.py` — POST /agent/register|heartbeat|alert|clip
-- `cloud-api/routers/admin.py` — GET /admin/stores|alerts|clips|heartbeats
-- `cloud-api/routers/client.py` — GET /client/alerts|clips|zones, PUT /client/zones
-- `cloud-api/routers/auth_router.py` — POST /auth/login
-- `cloud-api/db/schema.sql` — full Supabase PostgreSQL schema
-- `cloud-api/requirements.txt` — FastAPI, supabase, python-jose, passlib
-- `cloud-api/railway.toml` — Railway deployment config
-- `cloud-api/.env.example` — env var template
+- `shopguard/cloud.py` — SupabaseCloud: heartbeat thread, alert upload, frame upload
+- `shopguard/main.py` — wires in SupabaseCloud (start/stop, push_alert on each fired alert)
+- `supabase/schema.sql` — minimal schema: alerts + heartbeats tables + RLS policies
+- `config.yaml` — new `cloud:` section (disabled by default)
+- `.env.example` — SUPABASE_URL, SUPABASE_KEY, STORE_ID
+- `requirements.txt` — added supabase>=2.0.0, python-dotenv>=1.0.0
 
 **Tasks:**
-- [x] Initialize FastAPI project in cloud-api/
-- [x] Set up Supabase schema (db/schema.sql)
-- [x] Implement store registration endpoint: POST /agent/register
-- [x] Implement heartbeat endpoint: POST /agent/heartbeat
-- [x] Implement alert forwarding endpoint: POST /agent/alert
-- [x] Implement clip upload endpoint: POST /agent/clip
-- [x] Implement admin endpoints: GET /admin/stores, GET /admin/alerts, GET /admin/clips
-- [x] Implement client endpoints: GET /client/alerts, GET /client/clips, GET /client/zones
-- [x] API key auth for agents, JWT auth for dashboard users
-- [x] Environment variables documented in .env.example
-- [ ] Deploy to Railway (requires Railway account + Supabase project setup)
+- [x] Create `shopguard/cloud.py` with `SupabaseCloud` class
+- [x] Heartbeat: background thread upserts `heartbeats` row every 60 s
+- [x] Alert: on each fired alert, JPEG-encode the current frame and upload to `alert-frames` bucket
+- [x] Alert: insert row to `alerts` table with store_id, camera_index, zone_name, timestamp, image_url
+- [x] All Supabase I/O in daemon threads — detection loop never blocked
+- [x] Disabled by default; enabled via `cloud.enabled: true` + env vars
+- [x] RLS policies: anon key can insert (agent) and select (dashboard)
+- [x] RTSP credentials stay in local .env only — never sent to cloud
+- [x] Delete `cloud-api/` (FastAPI/Railway server)
 - [x] Update PROGRESS.md
+
+---
+
+## Phase D: Vercel Dashboard ✅ COMPLETE
+
+**Goal:** A Next.js frontend on Vercel that reads alerts and heartbeats directly from Supabase.
+
+**Files:**
+- `dashboard-web/app/page.tsx` — server component: alert feed + store online/offline status
+- `dashboard-web/app/layout.tsx` — root layout
+- `dashboard-web/lib/supabase.ts` — Supabase client + shared types + isOnline helper
+- `dashboard-web/package.json` — Next.js 15, @supabase/supabase-js
+- `dashboard-web/vercel.json` — Vercel deployment config
+- `dashboard-web/.env.local.example` — NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+**Tasks:**
+- [x] Scaffold Next.js 15 project in dashboard-web/
+- [x] Supabase client using public anon key (safe to expose in browser)
+- [x] Alert feed: shows last 50 alerts with zone name, camera, timestamp, JPEG thumbnail
+- [x] Store status: green/red dot based on heartbeat age (< 90 s = online)
+- [x] Server component with `revalidate = 30` (refreshes every 30 s)
+- [ ] Deploy to Vercel (add NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY as env vars)
+
+---
+
+## Setup Checklist (new install)
+
+1. Copy `.env.example` → `.env` and fill in `SUPABASE_URL`, `SUPABASE_KEY`, `STORE_ID`
+2. Run `supabase/schema.sql` in Supabase SQL Editor
+3. Create `alert-frames` Storage bucket in Supabase (set to Public)
+4. Set `cloud.enabled: true` in `config.yaml`
+5. `pip install -r requirements.txt`
+6. `python -m shopguard`
+
+For the Vercel dashboard:
+1. Copy `dashboard-web/.env.local.example` → `dashboard-web/.env.local`
+2. `cd dashboard-web && npm install && npm run dev`
+3. Deploy: `vercel --cwd dashboard-web`

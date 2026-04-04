@@ -1,15 +1,16 @@
 -- ShopGuard — Supabase schema
 -- Run this in the Supabase SQL Editor to initialise the database.
 --
--- Architecture: the local store agent (shopguard/) writes directly to Supabase
--- using the anon key.  The Vercel dashboard reads directly from Supabase.
--- No backend server sits in between.
+-- Authentication: Gmail login via Supabase Auth (Google OAuth provider).
+-- RLS ensures each user sees and writes only their own data.
+-- The local store agent authenticates once via browser (PKCE) and reuses
+-- the saved session on subsequent launches.
 
 -- ── Alerts ────────────────────────────────────────────────────────────────────
 -- One row per fired alert.  The agent inserts; the dashboard reads.
 create table if not exists alerts (
     id            uuid        primary key default gen_random_uuid(),
-    store_id      text        not null,
+    user_id       uuid        not null references auth.users(id) on delete cascade,
     camera_index  text        not null default '0',
     zone_name     text        not null default '',
     timestamp     timestamptz not null,
@@ -17,14 +18,14 @@ create table if not exists alerts (
     created_at    timestamptz not null default now()
 );
 
-create index if not exists alerts_store_id_idx   on alerts (store_id);
+create index if not exists alerts_user_id_idx    on alerts (user_id);
 create index if not exists alerts_created_at_idx on alerts (created_at desc);
 
 -- ── Heartbeats ────────────────────────────────────────────────────────────────
--- One row per store, upserted every 60 s by the local agent.
+-- One row per user (store), upserted every 60 s by the local agent.
 -- Dashboard uses last_seen to show online/offline status (threshold: 90 s).
 create table if not exists heartbeats (
-    store_id   text        primary key,
+    user_id    uuid        primary key references auth.users(id) on delete cascade,
     last_seen  timestamptz not null default now(),
     created_at timestamptz not null default now()
 );
@@ -33,22 +34,34 @@ create table if not exists heartbeats (
 alter table alerts     enable row level security;
 alter table heartbeats enable row level security;
 
--- Agents (anon key) can insert alerts.
-create policy "agents can insert alerts"
-    on alerts for insert to anon
-    with check (true);
+-- Authenticated users can insert their own alerts.
+create policy "users can insert own alerts"
+    on alerts for insert to authenticated
+    with check (auth.uid() = user_id);
 
--- Dashboard (anon key) can read all alerts.
-create policy "dashboard can read alerts"
-    on alerts for select to anon
-    using (true);
+-- Authenticated users can read their own alerts only.
+create policy "users can read own alerts"
+    on alerts for select to authenticated
+    using (auth.uid() = user_id);
 
--- Agents can upsert their own heartbeat row.
-create policy "agents can upsert heartbeats"
-    on heartbeats for all to anon
-    using (true)
-    with check (true);
+-- Authenticated users can manage their own heartbeat row.
+create policy "users can manage own heartbeat"
+    on heartbeats for all to authenticated
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
 
 -- ── Storage bucket ────────────────────────────────────────────────────────────
 -- Create manually in Supabase dashboard: Storage > New bucket > "alert-frames"
--- Set bucket visibility to Public so image_url links work without auth.
+-- Set bucket visibility to Public so image_url links work without extra auth.
+-- Alert frames are scoped to user_id/ prefix in the bucket path.
+--
+-- Optional: add Storage RLS policy to restrict access by user:
+--   create policy "users can manage own frames"
+--     on storage.objects for all to authenticated
+--     using (bucket_id = 'alert-frames' and (storage.foldername(name))[1] = auth.uid()::text)
+--     with check (bucket_id = 'alert-frames' and (storage.foldername(name))[1] = auth.uid()::text);
+--
+-- ── Google OAuth provider ─────────────────────────────────────────────────────
+-- Enable in Supabase dashboard: Authentication > Providers > Google
+-- Add your Google OAuth Client ID and Secret.
+-- Add redirect URL: https://your-project.supabase.co/auth/v1/callback

@@ -42,6 +42,7 @@ Thumbs.db
 # Secrets / config with credentials
 config.env
 secrets.py
+dashboard-web/.env.local
 
 # Claude Code local config
 .claude/

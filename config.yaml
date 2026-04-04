@@ -51,10 +51,12 @@ alerts:
 cloud:
   enabled: false            # set to true once Supabase is configured
   # url: ""                 # or set SUPABASE_URL env var
-  # anon_key: ""            # or set SUPABASE_KEY env var
-  store_id: "store_1"       # or set STORE_ID env var
+  # anon_key: ""            # or set SUPABASE_ANON_KEY env var
   heartbeat_interval: 60    # seconds between heartbeats
   storage_bucket: "alert-frames"
+  # On first launch with cloud.enabled: true, a browser window opens for
+  # Google login.  The session is saved to ~/.shopguard/session.json and
+  # reused automatically on subsequent launches.
 
 tracker:
   iou_threshold: 0.3

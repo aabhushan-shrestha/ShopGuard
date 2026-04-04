@@ -1,13 +1,43 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { createBrowserClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+/** Supabase client for use in Server Components and Route Handlers. */
+export function createSupabaseServer() {
+  const cookieStore = cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Server Components cannot set cookies — middleware handles refresh
+          }
+        },
+      },
+    }
+  )
+}
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+/** Supabase client for use in Client Components (browser). */
+export function createSupabaseBrowser() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 export interface Alert {
   id: string
-  store_id: string
+  user_id: string
   camera_index: string
   zone_name: string
   timestamp: string
@@ -16,7 +46,7 @@ export interface Alert {
 }
 
 export interface Heartbeat {
-  store_id: string
+  user_id: string
   last_seen: string
   created_at: string
 }

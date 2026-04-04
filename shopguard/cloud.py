@@ -11,10 +11,11 @@ Required env vars:
     SUPABASE_URL       — project URL from Supabase settings > API
     SUPABASE_ANON_KEY  — anon (public) key  (RLS enforces per-user access)
 """
-from dotenv import load_dotenv
-load_dotenv()
+
 from __future__ import annotations
 
+from dotenv import load_dotenv
+load_dotenv()
 import hashlib
 import json
 import logging

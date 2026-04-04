@@ -1,31 +1,4 @@
-import { createServerClient } from '@supabase/ssr'
 import { createBrowserClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-
-/** Supabase client for use in Server Components and Route Handlers. */
-export function createSupabaseServer() {
-  const cookieStore = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Server Components cannot set cookies — middleware handles refresh
-          }
-        },
-      },
-    }
-  )
-}
 
 /** Supabase client for use in Client Components (browser). */
 export function createSupabaseBrowser() {

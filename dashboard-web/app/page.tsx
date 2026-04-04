@@ -9,7 +9,8 @@
 import { redirect } from 'next/navigation'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Alert, Heartbeat } from '@/lib/supabase'
-import { createSupabaseServer, isOnline } from '@/lib/supabase'
+import { isOnline } from '@/lib/supabase'
+import { createSupabaseServer } from '@/lib/supabase-server'
 import LogoutButton from '@/app/components/LogoutButton'
 
 export const revalidate = 30
@@ -41,7 +42,7 @@ function formatTime(iso: string): string {
 }
 
 export default async function DashboardPage() {
-  const supabase = createSupabaseServer()
+  const supabase = await createSupabaseServer()
   const {
     data: { user },
   } = await supabase.auth.getUser()

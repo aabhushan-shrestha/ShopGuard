@@ -2,7 +2,8 @@
 
 import { createSupabaseBrowser } from '@/lib/supabase'
 
-export default function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const params = await searchParams
   async function signInWithGoogle() {
     const supabase = createSupabaseBrowser()
     await supabase.auth.signInWithOAuth({
@@ -28,7 +29,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
       <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>ShopGuard</h1>
       <p style={{ color: '#64748b', margin: 0 }}>Sign in to view your store alerts</p>
 
-      {searchParams.error && (
+      {params.error && (
         <p style={{ color: '#ef4444', fontSize: '0.875rem' }}>
           Authentication failed — please try again.
         </p>

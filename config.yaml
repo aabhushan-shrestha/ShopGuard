@@ -14,7 +14,7 @@ model:
   img_size: 640
 
 display:
-  show_window: true
+  show_window: false
   window_name: "ShopGuard - Person Detection"
   show_fps: true
   show_count: true

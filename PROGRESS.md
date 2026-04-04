@@ -250,7 +250,25 @@ No API keys, no store IDs, no passwords stored anywhere.
 - [ ] Enable Google provider in Supabase: Authentication > Providers > Google
 - [ ] Add Google OAuth Client ID + Secret in Supabase
 - [ ] Add redirect URL in Supabase: `https://your-project.supabase.co/auth/v1/callback`
-- [ ] Deploy to Vercel (add NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY)
+- [x] Deploy to Vercel (add NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY)
+- [x] Local agent runs headless (display.show_window: false)
+
+---
+
+---
+
+## Phase F: Master Dashboard — **YOU ARE HERE**
+
+**Goal:** Upgrade the Vercel dashboard into a full management console with real-time updates,
+multi-camera views, alert acknowledgement, and clip playback from cloud storage.
+
+**Tasks:**
+- [ ] Real-time alert feed (Supabase Realtime subscriptions, no polling)
+- [ ] Alert acknowledgement (mark as reviewed, add notes)
+- [ ] Clip playback from Supabase Storage (signed URLs)
+- [ ] Multi-camera status grid (one card per camera, live heartbeat indicator)
+- [ ] Alert thumbnail zoom / lightbox
+- [ ] Pagination or infinite scroll for alert history
 
 ---
 

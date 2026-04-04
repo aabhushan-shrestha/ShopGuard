@@ -49,7 +49,7 @@ alerts:
       # chat_id: ""       # or set TELEGRAM_CHAT_ID env var
 
 cloud:
-  enabled: false            # set to true once Supabase is configured
+  enabled: true            # set to true once Supabase is configured
   # url: ""                 # or set SUPABASE_URL env var
   # anon_key: ""            # or set SUPABASE_ANON_KEY env var
   heartbeat_interval: 60    # seconds between heartbeats

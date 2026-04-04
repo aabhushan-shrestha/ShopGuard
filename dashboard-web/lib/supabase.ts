@@ -13,6 +13,7 @@ export interface Alert {
   user_id: string
   camera_index: string
   zone_name: string
+  alert_type: string | null
   timestamp: string
   image_url: string | null
   created_at: string

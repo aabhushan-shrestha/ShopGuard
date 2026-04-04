@@ -178,7 +178,7 @@ class SupabaseCloud:
                 else:
                     self.send_response(400)
                     self.end_headers()
-                    self.wfile.write(b"<h2>Login failed — please try again.</h2>")
+                    self.wfile.write(b"<h2>Login failed - please try again.</h2>")
 
             def log_message(self, *_args: object) -> None:
                 pass  # suppress HTTP log noise
